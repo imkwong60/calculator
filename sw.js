@@ -1,7 +1,7 @@
 const CACHE_NAME = 'multi-calc-v1';
 const ASSETS = [
   './',
-  './multi-calculator.html',
+  './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
