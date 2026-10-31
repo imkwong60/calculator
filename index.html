@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-HK" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="多功能計數機：BMI、按揭、聚會分帳、超市購物、壽司朗" />
+  <title>多功能計數機</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    html, body { overscroll-behavior: none; height: 100%; overflow: hidden; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 9999px; }
+    .panel { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    .swiping { user-select: none; -webkit-user-select: none; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 antialiased">
+  <div id="app" class="h-full flex flex-col max-w-lg mx-auto relative">
+
+    <!-- Top Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0">
+      <div class="flex items-center gap-2.5">
+        <div id="hdr-icon" class="w-9 h-9 rounded-xl bg-rose-600 flex items-center justify-center shadow-lg">
+          <i data-lucide="activity" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 id="hdr-title" class="text-base font-bold text-white leading-tight">BMI & 熱量</h1>
+          <p class="text-[10px] text-slate-500">左右滑動切換 · 五合一計數機</p>
+        </div>
+      </div>
+      <button id="btn-reset" class="flex items-center text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-full transition active:scale-95">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1"></i> 重設
+      </button>
+    </header>
+
+    <!-- Swipe Viewport -->
+    <div id="viewport" class="flex-1 overflow-hidden relative">
+      <div id="track" class="flex h-full will-change-transform" style="transform: translateX(0)">
+        <!-- Panels injected by JS -->
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bg-slate-900 border-t border-slate-800 px-1 py-2 flex justify-around items-center shrink-0 z-30 safe-bottom">
+      <!-- Nav buttons injected -->
+    </nav>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ========== Config ==========
+  const CALCS = [
+    { id: 'bmi', name: 'BMI & 熱量', short: 'BMI', icon: 'activity', accent: 'text-rose-400', bg: 'bg-rose-600' },
+    { id: 'mortgage', name: '按揭計數機', short: '按揭', icon: 'home', accent: 'text-blue-400', bg: 'bg-blue-600' },
+    { id: 'party', name: '聚會分帳', short: '分帳', icon: 'party-popper', accent: 'text-indigo-400', bg: 'bg-indigo-600' },
+    { id: 'supermarket', name: '超市購物', short: '超市', icon: 'shopping-cart', accent: 'text-emerald-400', bg: 'bg-emerald-600' },
+    { id: 'sushiro', name: '壽司朗', short: '壽司', icon: 'utensils', accent: 'text-orange-400', bg: 'bg-orange-600' },
+  ];
+
+  let idx = 0;
+  let startX = 0, currX = 0, dragging = false, panelW = 0;
+
+  // ========== Shell ==========
+  function buildShell() {
+    const track = document.getElementById('track');
+    const nav = document.querySelector('nav');
+    track.innerHTML = CALCS.map((c, i) => `
+      <div class="panel w-full h-full shrink-0 overflow-y-auto bg-slate-900" data-i="${i}" id="panel-${c.id}">
+        <div class="p-4 pb-8 min-h-full" id="content-${c.id}"></div>
+      </div>`).join('');
+    nav.innerHTML = CALCS.map((c, i) => `
+      <button class="nav-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[56px] transition ${i===0?'bg-slate-800':''}" data-i="${i}">
+        <i data-lucide="${c.icon}" class="w-5 h-5 ${i===0?c.accent:'text-slate-500'}"></i>
+        <span class="text-[10px] font-medium ${i===0?'text-white':'text-slate-500'}">${c.short}</span>
+      </button>`).join('');
+    if (window.lucide) lucide.createIcons();
+    setupSwipe();
+    setupNav();
+    document.getElementById('btn-reset').onclick = () => window.dispatchEvent(new CustomEvent('reset-calc', { detail: { id: CALCS[idx].id } }));
+  }
+
+  function goTo(i, anim = true) {
+    if (i < 0 || i >= CALCS.length) return;
+    idx = i;
+    panelW = document.getElementById('viewport').clientWidth;
+    currX = -i * panelW;
+    const t = document.getElementById('track');
+    t.style.transition = anim ? 'transform .28s cubic-bezier(.25,.8,.25,1)' : 'none';
+    t.style.transform = `translateX(${currX}px)`;
+    updateHeader();
+  }
+
+  function updateHeader() {
+    const c = CALCS[idx];
+    document.getElementById('hdr-title').textContent = c.name;
+    const icon = document.getElementById('hdr-icon');
+    icon.className = `w-9 h-9 rounded-xl ${c.bg} flex items-center justify-center shadow-lg`;
+    icon.innerHTML = `<i data-lucide="${c.icon}" class="w-5 h-5 text-white"></i>`;
+    document.querySelectorAll('.nav-btn').forEach((b, i) => {
+      const ic = b.querySelector('i'), sp = b.querySelector('span');
+      if (i === idx) {
+        b.classList.add('bg-slate-800');
+        ic.className = `w-5 h-5 ${c.accent}`;
+        sp.className = 'text-[10px] font-medium text-white';
+      } else {
+        b.classList.remove('bg-slate-800');
+        ic.className = 'w-5 h-5 text-slate-500';
+        sp.className = 'text-[10px] font-medium text-slate-500';
+      }
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function setupSwipe() {
+    const vp = document.getElementById('viewport');
+    const onStart = x => { dragging = true; startX = x; panelW = vp.clientWidth; document.getElementById('track').style.transition = 'none'; document.body.classList.add('swiping'); };
+    const onMove = x => {
+      if (!dragging) return;
+      let d = x - startX;
+      if ((idx === 0 && d > 0) || (idx === CALCS.length - 1 && d < 0)) d *= 0.3;
+      document.getElementById('track').style.transform = `translateX(${currX + d}px)`;
+    };
+    const onEnd = x => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.classList.remove('swiping');
+      const d = x - startX;
+      const th = panelW * 0.22;
+      if (d < -th && idx < CALCS.length - 1) goTo(idx + 1);
+      else if (d > th && idx > 0) goTo(idx - 1);
+      else goTo(idx);
+    };
+    vp.addEventListener('touchstart', e => onStart(e.touches[0].clientX), { passive: true });
+    vp.addEventListener('touchmove', e => onMove(e.touches[0].clientX), { passive: true });
+    vp.addEventListener('touchend', e => onEnd(e.changedTouches[0].clientX), { passive: true });
+    vp.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX); });
+    window.addEventListener('mousemove', e => onMove(e.clientX));
+    window.addEventListener('mouseup', e => onEnd(e.clientX));
+    window.addEventListener('resize', () => goTo(idx, false));
+  }
+
+  function setupNav() {
+    document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => goTo(+b.dataset.i)));
+  }
+
+  // ========== Helpers ==========
+  const $ = id => document.getElementById(id);
+  const val = (id, def = 0) => parseFloat($(id)?.value) || def;
+  const txt = (id, v) => { if ($(id)) $(id).textContent = v; };
+
+  // ========== 1. BMI ==========
+  function initBMI() {
+    const el = $('content-bmi');
+    el.innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-slate-800 p-1 rounded-2xl flex text-xs font-bold border border-slate-700">
+          <button id="bmi-metric" class="flex-1 py-2 rounded-xl bg-slate-700 text-rose-400">公制 (cm/kg)</button>
+          <button id="bmi-imperial" class="flex-1 py-2 rounded-xl text-slate-400">英制 (ft+in/lbs)</button>
+        </div>
+        <section class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-4">
+          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="user-check" class="w-4 h-4 text-rose-500"></i>個人資料</h2>
+          <div class="grid grid-cols-2 gap-2 text-sm font-semibold">
+            <button id="bmi-male" class="py-2.5 rounded-xl border border-rose-500 bg-rose-500/20 text-rose-400 flex items-center justify-center gap-1"><i data-lucide="mars" class="w-4 h-4"></i>男士</button>
+            <button id="bmi-female" class="py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 flex items-center justify-center gap-1"><i data-lucide="venus" class="w-4 h-4"></i>女士</button>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div><label class="block text-slate-400 mb-1">年齡</label><input type="number" id="bmi-age" value="28" min="10" max="120" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white focus:ring-2 focus:ring-rose-500 outline-none"></div>
+            <div id="bmi-h-metric"><label class="block text-slate-400 mb-1">身高 (cm)</label><input type="number" id="bmi-hcm" value="172" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white focus:ring-2 focus:ring-rose-500 outline-none"></div>
+            <div id="bmi-h-imp" class="hidden col-span-2 grid grid-cols-2 gap-2">
+              <div><label class="block text-slate-400 mb-1">呎</label><input type="number" id="bmi-hft" value="5" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white outline-none"></div>
+              <div><label class="block text-slate-400 mb-1">吋</label><input type="number" id="bmi-hin" value="8" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white outline-none"></div>
+            </div>
+            <div id="bmi-w-metric" class="col-span-2"><label class="block text-slate-400 mb-1">體重 (kg)</label><input type="number" id="bmi-wkg" value="68" step="0.5" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white focus:ring-2 focus:ring-rose-500 outline-none"></div>
+            <div id="bmi-w-imp" class="col-span-2 hidden"><label class="block text-slate-400 mb-1">體重 (lbs)</label><input type="number" id="bmi-wlbs" value="150" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white outline-none"></div>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 text-xs flex items-center gap-1"><i data-lucide="flame" class="w-3.5 h-3.5 text-rose-500"></i>活動量</label>
+            <select id="bmi-act" class="w-full p-2.5 bg-slate-900 border border-slate-600 rounded-xl font-bold text-slate-200 outline-none">
+              <option value="1.2">久坐</option>
+              <option value="1.375" selected>輕度 (1-3天/週)</option>
+              <option value="1.55">中度 (3-5天)</option>
+              <option value="1.725">高度 (6-7天)</option>
+              <option value="1.9">極高強度</option>
+            </select>
+          </div>
+        </section>
+        <section class="bg-gradient-to-br from-rose-600 to-pink-700 text-white p-5 rounded-2xl shadow-lg space-y-3">
+          <div class="flex justify-between">
+            <div><span class="text-xs text-rose-100 uppercase font-semibold">BMI</span><div class="text-4xl font-black mt-1" id="bmi-val">23.0</div></div>
+            <div class="bg-white/10 px-3 py-1.5 rounded-xl text-right"><span class="text-xs text-rose-100 block">狀態</span><span id="bmi-st" class="text-sm font-bold">適中</span></div>
+          </div>
+          <div class="relative">
+            <div class="w-full bg-black/20 rounded-full h-2.5 flex overflow-hidden">
+              <div class="w-[20%] bg-blue-300"></div><div class="w-[30%] bg-emerald-400"></div><div class="w-[25%] bg-amber-300"></div><div class="w-[25%] bg-red-400"></div>
+            </div>
+            <div id="bmi-ptr" class="absolute -top-1 -translate-x-1/2 transition-all" style="left:40%"><div class="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-l-transparent border-r-transparent border-b-white"></div></div>
+          </div>
+          <div class="flex justify-between text-xs text-rose-100 pt-1 border-t border-white/15"><span>理想體重</span><span id="bmi-ideal" class="font-bold">54.7 - 70.7 kg</span></div>
+        </section>
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 space-y-3">
+          <h2 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>熱量分析</h2>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-amber-500/10 p-3 rounded-xl border border-amber-500/30"><span class="text-amber-300 font-semibold block">BMR</span><span id="bmi-bmr" class="text-xl font-extrabold text-amber-100">1,620</span><span class="text-[10px] text-amber-400/80 block">kcal/日</span></div>
+            <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/30"><span class="text-rose-300 font-semibold block">TDEE</span><span id="bmi-tdee" class="text-xl font-extrabold text-rose-100">2,228</span><span class="text-[10px] text-rose-400/80 block">kcal/日</span></div>
+          </div>
+        </section>
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 space-y-2">
+          <h2 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2"><i data-lucide="target" class="w-4 h-4 text-rose-500"></i>每日建議</h2>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between text-xs"><div><span class="font-bold text-slate-200 block">溫和減脂</span><span class="text-slate-500">TDEE-15%</span></div><span id="bmi-g1" class="font-extrabold text-emerald-400 text-base">1,894</span></div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between text-xs"><div><span class="font-bold text-slate-200 block">增肌</span><span class="text-slate-500">TDEE+10%</span></div><span id="bmi-g2" class="font-extrabold text-blue-400 text-base">2,450</span></div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between text-xs"><div><span class="font-bold text-slate-200 block">快速減脂</span><span class="text-slate-500">TDEE-25%</span></div><span id="bmi-g3" class="font-extrabold text-amber-400 text-base">1,671</span></div>
+        </section>
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden">
+          <div class="bg-slate-800 px-4 py-2.5 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="pie-chart" class="w-4 h-4 text-rose-500"></i>營養素 (TDEE基準)</div>
+          <div class="p-3 grid grid-cols-3 gap-2 text-center text-xs">
+            <div class="bg-rose-500/10 p-2 rounded-xl border border-rose-500/20"><span class="text-slate-400 block text-[11px]">蛋白質30%</span><span id="bmi-mp" class="font-extrabold text-rose-300">167g</span></div>
+            <div class="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20"><span class="text-slate-400 block text-[11px]">碳水40%</span><span id="bmi-mc" class="font-extrabold text-amber-300">222g</span></div>
+            <div class="bg-blue-500/10 p-2 rounded-xl border border-blue-500/20"><span class="text-slate-400 block text-[11px]">脂肪30%</span><span id="bmi-mf" class="font-extrabold text-blue-300">74g</span></div>
+          </div>
+        </section>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    let metric = true, gender = 'male';
+    const calc = () => {
+      let h = 0, w = 0;
+      if (metric) { h = val('bmi-hcm'); w = val('bmi-wkg'); }
+      else { h = (val('bmi-hft') * 12 + val('bmi-hin')) * 2.54; w = val('bmi-wlbs') * 0.453592; }
+      const age = val('bmi-age', 25), act = val('bmi-act', 1.2);
+      if (h <= 0 || w <= 0) return;
+      const hm = h / 100, bmi = w / (hm * hm);
+      txt('bmi-val', bmi.toFixed(1));
+      let st = '', ptr = 0;
+      if (bmi < 18.5) { st = '過輕'; ptr = Math.max(5, bmi / 18.5 * 20); }
+      else if (bmi < 24) { st = '適中'; ptr = 20 + (bmi - 18.5) / 5.5 * 30; }
+      else if (bmi < 28) { st = '過重'; ptr = 50 + (bmi - 24) / 4 * 25; }
+      else { st = '肥胖'; ptr = Math.min(95, 75 + (bmi - 28) / 12 * 25); }
+      txt('bmi-st', st); $('bmi-ptr').style.left = ptr + '%';
+      const minI = 18.5 * hm * hm, maxI = 23.9 * hm * hm;
+      txt('bmi-ideal', metric ? `${minI.toFixed(1)} - ${maxI.toFixed(1)} kg` : `${(minI/0.453592).toFixed(0)} - ${(maxI/0.453592).toFixed(0)} lbs`);
+      let bmr = 10 * w + 6.25 * h - 5 * age + (gender === 'male' ? 5 : -161);
+      const tdee = bmr * act;
+      txt('bmi-bmr', Math.round(bmr).toLocaleString());
+      txt('bmi-tdee', Math.round(tdee).toLocaleString());
+      txt('bmi-g1', Math.round(tdee * 0.85).toLocaleString());
+      txt('bmi-g2', Math.round(tdee * 1.1).toLocaleString());
+      txt('bmi-g3', Math.round(tdee * 0.75).toLocaleString());
+      txt('bmi-mp', Math.round(tdee * 0.3 / 4) + 'g');
+      txt('bmi-mc', Math.round(tdee * 0.4 / 4) + 'g');
+      txt('bmi-mf', Math.round(tdee * 0.3 / 9) + 'g');
+    };
+    $('bmi-metric').onclick = () => { metric = true; $('bmi-metric').className = 'flex-1 py-2 rounded-xl bg-slate-700 text-rose-400'; $('bmi-imperial').className = 'flex-1 py-2 rounded-xl text-slate-400'; $('bmi-h-metric').classList.remove('hidden'); $('bmi-h-imp').classList.add('hidden'); $('bmi-w-metric').classList.remove('hidden'); $('bmi-w-imp').classList.add('hidden'); calc(); };
+    $('bmi-imperial').onclick = () => { metric = false; $('bmi-imperial').className = 'flex-1 py-2 rounded-xl bg-slate-700 text-rose-400'; $('bmi-metric').className = 'flex-1 py-2 rounded-xl text-slate-400'; $('bmi-h-metric').classList.add('hidden'); $('bmi-h-imp').classList.remove('hidden'); $('bmi-w-metric').classList.add('hidden'); $('bmi-w-imp').classList.remove('hidden'); calc(); };
+    $('bmi-male').onclick = () => { gender = 'male'; $('bmi-male').className = 'py-2.5 rounded-xl border border-rose-500 bg-rose-500/20 text-rose-400 flex items-center justify-center gap-1'; $('bmi-female').className = 'py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 flex items-center justify-center gap-1'; calc(); };
+    $('bmi-female').onclick = () => { gender = 'female'; $('bmi-female').className = 'py-2.5 rounded-xl border border-rose-500 bg-rose-500/20 text-rose-400 flex items-center justify-center gap-1'; $('bmi-male').className = 'py-2.5 rounded-xl border border-slate-600 bg-slate-800 text-slate-300 flex items-center justify-center gap-1'; calc(); };
+    ['bmi-age','bmi-hcm','bmi-hft','bmi-hin','bmi-wkg','bmi-wlbs','bmi-act'].forEach(id => { $(id)?.addEventListener('input', calc); $(id)?.addEventListener('change', calc); });
+    window.addEventListener('reset-calc', e => { if (e.detail.id === 'bmi') { metric = true; gender = 'male'; $('bmi-age').value = 28; $('bmi-hcm').value = 172; $('bmi-wkg').value = 68; $('bmi-act').value = 1.375; $('bmi-metric').click(); $('bmi-male').click(); calc(); } });
+    calc();
+  }
+
+  // ========== 2. Mortgage ==========
+  function initMortgage() {
+    const el = $('content-mortgage');
+    el.innerHTML = `
+      <div class="space-y-4">
+        <section class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-5 rounded-2xl shadow-lg space-y-4">
+          <div class="flex justify-between">
+            <div><span class="text-xs text-blue-200 uppercase font-semibold">每月供款</span><div class="text-3xl font-black mt-1">$<span id="mtg-m">0</span></div></div>
+            <div class="bg-white/10 px-3 py-1.5 rounded-xl text-right"><span class="text-xs text-blue-200 block">最低月入</span><span class="text-sm font-bold">$<span id="mtg-inc">0</span></span></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/15 text-xs">
+            <div><span class="text-blue-200 block">貸款</span><span class="font-bold">$<span id="mtg-loan">0</span>萬</span></div>
+            <div><span class="text-blue-200 block">利息</span><span class="font-bold">$<span id="mtg-int">0</span>萬</span></div>
+            <div><span class="text-blue-200 block">總還款</span><span class="font-bold">$<span id="mtg-tot">0</span>萬</span></div>
+          </div>
+        </section>
+        <section class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-4">
+          <h2 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="sliders" class="w-4 h-4 text-blue-500"></i>按揭條件</h2>
+          <div>
+            <div class="flex justify-between text-sm font-semibold text-slate-300 mb-1"><label>物業售價 (萬)</label><span class="text-blue-400">$<span id="mtg-dp">600</span> 萬</span></div>
+            <input type="number" id="mtg-price" value="600" min="50" max="5000" step="10" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <div class="flex justify-between text-sm font-semibold text-slate-300 mb-1"><label>首期</label><span class="text-blue-400"><span id="mtg-dpp">30</span>% ($<span id="mtg-dpa">180</span>萬)</span></div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="relative"><input type="number" id="mtg-pct" value="30" min="10" max="90" step="5" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white pr-8 outline-none"><span class="absolute right-3 top-2 text-slate-400 text-sm">%</span></div>
+              <div class="relative"><span class="absolute left-3 top-2 text-slate-400 text-sm">$</span><input type="number" id="mtg-amt" value="180" class="w-full pl-7 pr-8 py-2 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white outline-none"><span class="absolute right-3 top-2 text-slate-400 text-sm">萬</span></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs text-slate-400 mb-1">年期</label>
+              <select id="mtg-ten" class="w-full p-2.5 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white outline-none">
+                <option value="10">10年</option><option value="15">15年</option><option value="20">20年</option><option value="25">25年</option><option value="30" selected>30年</option>
+              </select>
+            </div>
+            <div><label class="block text-xs text-slate-400 mb-1">年利率%</label>
+              <div class="relative"><input type="number" id="mtg-rate" value="4.125" step="0.125" min="0.1" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-600 rounded-xl font-bold text-white pr-8 outline-none"><span class="absolute right-3 top-2.5 text-slate-400 text-sm">%</span></div>
+            </div>
+          </div>
+          <label class="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-700 cursor-pointer">
+            <div class="flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i><span class="text-xs font-semibold text-slate-300">加入按揭保險 (高成數)</span></div>
+            <input type="checkbox" id="mtg-mip" class="w-4 h-4 accent-blue-500 rounded">
+          </label>
+        </section>
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden">
+          <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+            <span class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="table" class="w-4 h-4 text-blue-500"></i>每年還款摘要</span>
+            <button id="mtg-tog" class="text-xs font-semibold text-blue-400">展開</button>
+          </div>
+          <div id="mtg-sch" class="hidden overflow-x-auto">
+            <table class="w-full text-left text-xs"><thead class="bg-slate-900 text-slate-500 border-b border-slate-700"><tr><th class="p-3">年</th><th class="p-3">本金</th><th class="p-3">利息</th><th class="p-3">剩餘</th></tr></thead>
+            <tbody id="mtg-body" class="divide-y divide-slate-800 text-slate-300"></tbody></table>
+          </div>
+        </section>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    const calc = () => {
+      const price = val('mtg-price') * 10000, pct = val('mtg-pct'), yrs = +$('mtg-ten').value || 30, rate = val('mtg-rate') / 100;
+      const ltv = 100 - pct;
+      let loan = price * ltv / 100;
+      if ($('mtg-mip').checked && ltv > 70) {
+        const mip = ltv <= 80 ? 0.015 : ltv <= 90 ? 0.025 : 0.03;
+        loan += loan * mip;
+      }
+      const mr = rate / 12, mths = yrs * 12;
+      let mon = mr > 0 ? (loan * mr * Math.pow(1 + mr, mths)) / (Math.pow(1 + mr, mths) - 1) : loan / mths;
+      const tot = mon * mths, int = tot - loan;
+      txt('mtg-dp', (price / 10000).toLocaleString());
+      txt('mtg-dpp', pct.toFixed(0));
+      txt('mtg-dpa', ((price * pct / 100) / 10000).toFixed(1));
+      txt('mtg-m', Math.round(mon).toLocaleString());
+      txt('mtg-inc', Math.round(mon / 0.5).toLocaleString());
+      txt('mtg-loan', (loan / 10000).toFixed(1));
+      txt('mtg-int', (int / 10000).toFixed(1));
+      txt('mtg-tot', (tot / 10000).toFixed(1));
+      const body = $('mtg-body'); body.innerHTML = '';
+      let bal = loan;
+      for (let y = 1; y <= yrs; y++) {
+        let yp = 0, yi = 0;
+        for (let m = 0; m < 12; m++) {
+          if (bal <= 0) break;
+          const i = bal * mr, p = mon - i;
+          yi += i; yp += p; bal -= p;
+        }
+        if (bal < 0) bal = 0;
+        const tr = document.createElement('tr');
+        tr.className = y % 2 ? '' : 'bg-slate-900/50';
+        tr.innerHTML = `<td class="p-3 font-bold">第${y}年</td><td class="p-3 text-emerald-400">$${Math.round(yp).toLocaleString()}</td><td class="p-3 text-red-400">$${Math.round(yi).toLocaleString()}</td><td class="p-3 text-slate-500">$${Math.round(bal).toLocaleString()}</td>`;
+        body.appendChild(tr);
+      }
+    };
+    const syncPct = () => { $('mtg-amt').value = ((val('mtg-price') * val('mtg-pct')) / 100).toFixed(1); };
+    $('mtg-price').oninput = () => { syncPct(); calc(); };
+    $('mtg-pct').oninput = () => { syncPct(); calc(); };
+    $('mtg-amt').oninput = () => {
+      const p = val('mtg-price');
+      if (p > 0) $('mtg-pct').value = Math.min(100, Math.max(0, (val('mtg-amt') / p) * 100)).toFixed(1);
+      calc();
+    };
+    $('mtg-ten').onchange = calc;
+    $('mtg-rate').oninput = calc;
+    $('mtg-mip').onchange = calc;
+    $('mtg-tog').onclick = () => {
+      const h = $('mtg-sch').classList.toggle('hidden');
+      $('mtg-tog').textContent = h ? '展開' : '收起';
+    };
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id === 'mortgage') {
+        $('mtg-price').value = 600; $('mtg-pct').value = 30; $('mtg-ten').value = 30; $('mtg-rate').value = 4.125; $('mtg-mip').checked = false;
+        syncPct(); calc();
+      }
+    });
+    syncPct(); calc();
+  }
+
+  // ========== 3. Party ==========
+  function initParty() {
+    const el = $('content-party');
+    el.innerHTML = `
+      <div class="space-y-4">
+        <section class="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/30 space-y-3">
+          <h2 class="text-xs font-bold text-indigo-300 uppercase flex items-center gap-1.5"><i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>1. 朋友 (<span id="pty-n">0</span>人)</h2>
+          <form id="pty-fm" class="flex gap-2">
+            <input type="text" id="pty-name" placeholder="名字" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500">
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-1"><i data-lucide="user-plus" class="w-4 h-4"></i>加入</button>
+          </form>
+          <div id="pty-pills" class="flex flex-wrap gap-2"></div>
+        </section>
+        <section class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-3">
+          <h2 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="receipt" class="w-4 h-4 text-indigo-400"></i>2. 新增消費</h2>
+          <form id="pty-ef" class="space-y-3">
+            <div class="flex gap-2">
+              <input type="text" id="pty-title" placeholder="項目" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-indigo-500">
+              <div class="relative w-28"><span class="absolute left-3 top-2 text-slate-400 text-sm">$</span><input type="number" id="pty-amt" step="0.1" min="0" placeholder="金額" class="w-full pl-7 pr-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-sm font-semibold text-white outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div><label class="block text-slate-400 mb-1">誰付</label><select id="pty-payer" class="w-full p-2 bg-slate-900 border border-slate-600 rounded-xl font-semibold text-slate-200 outline-none"></select></div>
+              <div><label class="block text-slate-400 mb-1">分擔</label><select id="pty-mode" class="w-full p-2 bg-slate-900 border border-slate-600 rounded-xl font-semibold text-slate-200 outline-none"><option value="ALL">所有人</option><option value="CUSTOM">指定</option></select></div>
+            </div>
+            <div id="pty-cbs-wrap" class="hidden bg-slate-900 p-2.5 rounded-xl border border-slate-700"><span class="text-xs text-slate-400 block mb-1">勾選參與者</span><div id="pty-cbs" class="flex flex-wrap gap-2 text-xs"></div></div>
+            <button type="submit" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i>新增</button>
+          </form>
+        </section>
+        <section class="bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden">
+          <div class="bg-slate-800 px-4 py-2.5 border-b border-slate-700 flex justify-between"><span class="text-xs font-bold text-slate-400">消費紀錄</span><span id="pty-badge" class="text-xs font-bold bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">0 項</span></div>
+          <ul id="pty-list" class="divide-y divide-slate-800 min-h-[60px]"></ul>
+        </section>
+        <section class="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-2xl space-y-3">
+          <div class="flex justify-between items-center border-b border-emerald-500/20 pb-2">
+            <h2 class="text-sm font-bold text-emerald-300 flex items-center gap-1.5"><i data-lucide="calculator" class="w-4 h-4"></i>結帳清算</h2>
+            <button id="pty-copy" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1"><i data-lucide="copy" class="w-3.5 h-3.5"></i>複製</button>
+          </div>
+          <div id="pty-bals" class="space-y-1.5 text-xs"></div>
+          <hr class="border-emerald-500/20">
+          <div id="pty-trans" class="space-y-2 text-sm"></div>
+        </section>
+        <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl flex justify-between items-center">
+          <div><span class="text-xs text-slate-400 block">總花費</span><span class="text-2xl font-black text-indigo-400">$<span id="pty-tot">0.0</span></span></div>
+          <div class="text-right"><span class="text-xs text-slate-500 block">平均每人</span><span class="text-sm font-bold text-slate-300">$<span id="pty-avg">0.0</span></span></div>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    let members = JSON.parse(localStorage.getItem('pty_m') || '["阿Dave","May","Ben"]');
+    let expenses = JSON.parse(localStorage.getItem('pty_e') || '[]');
+    const save = () => { localStorage.setItem('pty_m', JSON.stringify(members)); localStorage.setItem('pty_e', JSON.stringify(expenses)); };
+
+    function renderMembers() {
+      $('pty-n').textContent = members.length;
+      const pills = $('pty-pills'), payer = $('pty-payer'), cbs = $('pty-cbs');
+      pills.innerHTML = ''; payer.innerHTML = ''; cbs.innerHTML = '';
+      if (!members.length) { pills.innerHTML = '<span class="text-xs text-slate-500">請先新增朋友</span>'; return; }
+      members.forEach(m => {
+        const p = document.createElement('div');
+        p.className = 'flex items-center bg-slate-900 border border-indigo-500/40 text-indigo-200 text-xs font-semibold px-3 py-1 rounded-full';
+        p.innerHTML = `<span>${m}</span><button class="ml-1.5 text-indigo-400 hover:text-red-400" data-n="${m}"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>`;
+        p.querySelector('button').onclick = () => {
+          members = members.filter(x => x !== m);
+          expenses.forEach(e => { e.participants = e.participants.filter(pp => pp !== m); if (e.payer === m) e.payer = members[0] || ''; });
+          save(); renderAll();
+        };
+        pills.appendChild(p);
+        const o = document.createElement('option'); o.value = m; o.textContent = m; payer.appendChild(o);
+        const lb = document.createElement('label');
+        lb.className = 'flex items-center gap-1 border border-slate-600 px-2 py-1 rounded-lg bg-slate-800 cursor-pointer';
+        lb.innerHTML = `<input type="checkbox" value="${m}" checked class="pty-cb rounded accent-indigo-500"> <span>${m}</span>`;
+        cbs.appendChild(lb);
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function renderExps() {
+      const list = $('pty-list'); list.innerHTML = '';
+      $('pty-badge').textContent = expenses.length + ' 項';
+      if (!expenses.length) { list.innerHTML = '<li class="p-6 text-center text-slate-500 text-sm">暫無消費</li>'; return; }
+      expenses.forEach(exp => {
+        const li = document.createElement('li');
+        li.className = 'px-4 py-3 flex justify-between items-center text-sm';
+        const st = exp.participants.length === members.length ? '所有人' : exp.participants.length + '人';
+        li.innerHTML = `<div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-bold text-slate-200 truncate">${exp.title}</span><span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">${exp.payer}付</span></div><p class="text-xs text-slate-500">${st}</p></div><div class="flex items-center gap-3"><span class="font-black text-white">$${exp.amount.toFixed(1)}</span><button class="text-slate-500 hover:text-red-400" data-id="${exp.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
+        li.querySelector('button').onclick = () => { expenses = expenses.filter(e => e.id !== exp.id); save(); renderAll(); };
+        list.appendChild(li);
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function settle() {
+      const tot = expenses.reduce((s, e) => s + e.amount, 0);
+      txt('pty-tot', tot.toFixed(1));
+      txt('pty-avg', (members.length ? tot / members.length : 0).toFixed(1));
+      const bals = {}; members.forEach(m => bals[m] = 0);
+      expenses.forEach(exp => {
+        if (bals[exp.payer] !== undefined) bals[exp.payer] += exp.amount;
+        const sh = exp.amount / (exp.participants.length || 1);
+        exp.participants.forEach(p => { if (bals[p] !== undefined) bals[p] -= sh; });
+      });
+      const bl = $('pty-bals'); bl.innerHTML = '';
+      members.forEach(m => {
+        const b = bals[m] || 0;
+        const d = document.createElement('div');
+        d.className = 'flex justify-between items-center bg-slate-900 px-3 py-1.5 rounded-lg border border-emerald-500/20';
+        d.innerHTML = `<span class="font-medium text-slate-300">${m}</span>${Math.abs(b) < 0.01 ? '<span class="text-slate-500">$0</span>' : b > 0 ? `<span class="text-emerald-400 font-bold">應收回 +$${b.toFixed(1)}</span>` : `<span class="text-red-400 font-bold">應支付 -$${Math.abs(b).toFixed(1)}</span>`}`;
+        bl.appendChild(d);
+      });
+      const debt = [], cred = [];
+      Object.keys(bals).forEach(m => {
+        const b = bals[m];
+        if (b < -0.01) debt.push({ n: m, a: -b });
+        else if (b > 0.01) cred.push({ n: m, a: b });
+      });
+      const trans = []; let i = 0, j = 0;
+      while (i < debt.length && j < cred.length) {
+        const a = Math.min(debt[i].a, cred[j].a);
+        trans.push({ f: debt[i].n, t: cred[j].n, a });
+        debt[i].a -= a; cred[j].a -= a;
+        if (debt[i].a < 0.01) i++;
+        if (cred[j].a < 0.01) j++;
+      }
+      const tl = $('pty-trans'); tl.innerHTML = '';
+      if (!trans.length) tl.innerHTML = '<div class="bg-slate-900 p-3 rounded-xl border border-emerald-500/20 text-center text-slate-500 text-xs">帳目平衡</div>';
+      else {
+        trans.forEach(t => {
+          const c = document.createElement('div');
+          c.className = 'bg-slate-900 p-3 rounded-xl border border-emerald-500/30 flex items-center justify-between';
+          c.innerHTML = `<div class="flex items-center gap-2"><span class="font-bold text-red-400">${t.f}</span><i data-lucide="arrow-right" class="w-4 h-4 text-slate-500"></i><span class="font-bold text-emerald-400">${t.t}</span></div><span class="font-black text-white">$${t.a.toFixed(1)}</span>`;
+          tl.appendChild(c);
+        });
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    function renderAll() { renderMembers(); renderExps(); settle(); }
+
+    $('pty-fm').onsubmit = e => {
+      e.preventDefault();
+      const n = $('pty-name').value.trim();
+      if (n && !members.includes(n)) { members.push(n); save(); renderAll(); $('pty-name').value = ''; }
+    };
+    $('pty-mode').onchange = e => $('pty-cbs-wrap').classList.toggle('hidden', e.target.value !== 'CUSTOM');
+    $('pty-ef').onsubmit = e => {
+      e.preventDefault();
+      const title = $('pty-title').value, amount = parseFloat($('pty-amt').value), payer = $('pty-payer').value;
+      const mode = $('pty-mode').value;
+      let parts = mode === 'ALL' ? [...members] : [...document.querySelectorAll('.pty-cb:checked')].map(c => c.value);
+      if (!payer || !parts.length || isNaN(amount) || amount <= 0) return;
+      expenses.unshift({ id: Date.now().toString(), title, amount, payer, participants: parts });
+      save(); renderAll();
+      $('pty-title').value = ''; $('pty-amt').value = '';
+    };
+    $('pty-copy').onclick = () => {
+      const tot = expenses.reduce((s, e) => s + e.amount, 0);
+      let t = `🎉 Party 結帳\n總花費: $${tot.toFixed(1)}\n\n`;
+      // simple
+      navigator.clipboard?.writeText(t).then(() => alert('已複製！')).catch(() => alert('複製失敗'));
+    };
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id === 'party') { members = ['阿Dave','May','Ben']; expenses = []; save(); renderAll(); }
+    });
+    renderAll();
+  }
+
+  // ========== 4. Supermarket ==========
+  function initSupermarket() {
+    const el = $('content-supermarket');
+    el.innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/30 space-y-3">
+          <h2 class="text-xs font-bold text-emerald-300 uppercase flex items-center gap-1.5"><i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>加入貨品</h2>
+          <form id="sm-form" class="space-y-2">
+            <div class="flex gap-2">
+              <input type="text" id="sm-name" placeholder="貨品名稱 (選填)" class="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-emerald-500">
+              <div class="relative w-32"><span class="absolute left-3 top-2.5 text-slate-400 text-sm">$</span><input type="number" id="sm-price" step="0.1" min="0" placeholder="價錢" required class="w-full pl-7 pr-3 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-emerald-500"></div>
+            </div>
+            <div class="flex gap-2 items-center">
+              <div class="flex items-center bg-slate-900 border border-slate-600 rounded-xl px-2 py-1 flex-1">
+                <span class="text-xs text-slate-400 mr-2">數量</span>
+                <button type="button" id="sm-minus" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-300 hover:bg-slate-700">-</button>
+                <input type="number" id="sm-qty" value="1" min="1" class="w-12 text-center text-sm font-bold text-white bg-transparent outline-none">
+                <button type="button" id="sm-plus" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-300 hover:bg-slate-700">+</button>
+              </div>
+              <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1 active:scale-95"><i data-lucide="check" class="w-4 h-4"></i>加入</button>
+            </div>
+          </form>
+        </div>
+        <div class="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-2.5 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-600">
+              <label class="block text-slate-400 font-medium mb-1 flex items-center gap-1"><i data-lucide="wallet" class="w-3.5 h-3.5"></i>預算 ($)</label>
+              <input type="number" id="sm-budget" placeholder="不設上限" class="w-full text-white font-bold outline-none text-sm bg-transparent">
+            </div>
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-600">
+              <label class="block text-slate-400 font-medium mb-1 flex items-center gap-1"><i data-lucide="percent" class="w-3.5 h-3.5"></i>折扣</label>
+              <select id="sm-disc" class="w-full text-white font-bold outline-none text-sm bg-transparent">
+                <option value="1">無折扣</option><option value="0.95">95折</option><option value="0.9">9折</option><option value="0.85">85折</option><option value="0.8">8折</option>
+              </select>
+            </div>
+          </div>
+          <div id="sm-bar-wrap" class="hidden space-y-1 pt-1">
+            <div class="flex justify-between text-slate-400 font-medium"><span>預算使用率</span><span id="sm-pct">0%</span></div>
+            <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden"><div id="sm-bar" class="bg-emerald-500 h-2 rounded-full transition-all w-0"></div></div>
+          </div>
+        </div>
+        <div class="bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden">
+          <div class="bg-slate-800 px-4 py-2.5 border-b border-slate-700 flex justify-between"><span class="text-xs font-bold text-slate-400 uppercase">已加入貨品</span><span id="sm-cnt" class="text-xs font-bold bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">共 0 件</span></div>
+          <ul id="sm-list" class="divide-y divide-slate-800 min-h-[100px]"></ul>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl sticky bottom-0">
+          <div class="flex justify-between items-baseline mb-1 text-xs">
+            <span class="text-slate-500">原價小計: $<span id="sm-sub">0.0</span></span>
+            <span id="sm-save" class="font-semibold text-emerald-400"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <div><span class="text-xs text-slate-400 block">預計實付</span><span class="text-3xl font-black text-emerald-400">$<span id="sm-grand">0.0</span></span></div>
+            <div id="sm-status" class="text-right"></div>
+          </div>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    let items = JSON.parse(localStorage.getItem('sm_items') || '[]');
+    let budget = localStorage.getItem('sm_budget') ? parseFloat(localStorage.getItem('sm_budget')) : null;
+    let disc = 1;
+
+    const save = () => localStorage.setItem('sm_items', JSON.stringify(items));
+    const saveB = () => budget != null && !isNaN(budget) ? localStorage.setItem('sm_budget', budget) : localStorage.removeItem('sm_budget');
+
+    function render() {
+      const list = $('sm-list'); list.innerHTML = '';
+      const tq = items.reduce((s, i) => s + i.qty, 0);
+      $('sm-cnt').textContent = `共 ${tq} 件`;
+      if (!items.length) {
+        list.innerHTML = '<li class="p-8 text-center text-slate-500 text-sm"><i data-lucide="shopping-bag" class="w-8 h-8 mx-auto mb-2 opacity-50"></i><br>購物車仲未有野</li>';
+        if (window.lucide) lucide.createIcons();
+        calc(); return;
+      }
+      items.forEach((it, i) => {
+        const li = document.createElement('li');
+        li.className = 'px-4 py-3 flex justify-between items-center text-sm';
+        const name = it.name.trim() || `貨品 #${i + 1}`;
+        li.innerHTML = `<div class="flex-1 min-w-0 pr-3"><p class="font-semibold text-slate-200 truncate">${name}</p><p class="text-xs text-slate-500">$${it.price.toFixed(1)} × ${it.qty}</p></div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center bg-slate-800 rounded-lg p-0.5">
+              <button class="sm-qm w-6 h-6 rounded bg-slate-700 text-slate-300 font-bold text-xs" data-id="${it.id}">-</button>
+              <span class="w-7 text-center font-bold text-xs">${it.qty}</span>
+              <button class="sm-qp w-6 h-6 rounded bg-slate-700 text-slate-300 font-bold text-xs" data-id="${it.id}">+</button>
+            </div>
+            <span class="font-bold text-white w-16 text-right">$${(it.price * it.qty).toFixed(1)}</span>
+            <button class="sm-del text-slate-500 hover:text-red-400" data-id="${it.id}"><i data-lucide="trash" class="w-4 h-4"></i></button>
+          </div>`;
+        li.querySelector('.sm-qm').onclick = () => updQty(it.id, -1);
+        li.querySelector('.sm-qp').onclick = () => updQty(it.id, 1);
+        li.querySelector('.sm-del').onclick = () => { items = items.filter(x => x.id !== it.id); save(); render(); };
+        list.appendChild(li);
+      });
+      if (window.lucide) lucide.createIcons();
+      calc();
+    }
+
+    function updQty(id, d) {
+      const it = items.find(x => x.id === id);
+      if (!it) return;
+      it.qty += d;
+      if (it.qty <= 0) items = items.filter(x => x.id !== id);
+      save(); render();
+    }
+
+    function calc() {
+      const sub = items.reduce((s, i) => s + i.price * i.qty, 0);
+      const grand = sub * disc;
+      const saveAmt = sub - grand;
+      txt('sm-sub', sub.toFixed(1));
+      txt('sm-grand', grand.toFixed(1));
+      $('sm-save').textContent = saveAmt > 0 ? `已省 $${saveAmt.toFixed(1)}` : '';
+      if (budget != null && budget > 0) {
+        $('sm-bar-wrap').classList.remove('hidden');
+        const pct = Math.min(Math.round(grand / budget * 100), 100);
+        const rem = budget - grand;
+        $('sm-pct').textContent = pct + '%';
+        $('sm-bar').style.width = pct + '%';
+        if (rem < 0) {
+          $('sm-bar').className = 'bg-red-500 h-2 rounded-full transition-all';
+          $('sm-status').innerHTML = `<span class="inline-block bg-red-500/20 text-red-400 text-xs font-bold px-2.5 py-1 rounded-full">超出 $${Math.abs(rem).toFixed(1)}</span>`;
+        } else {
+          $('sm-bar').className = 'bg-emerald-500 h-2 rounded-full transition-all';
+          $('sm-status').innerHTML = `<span class="text-xs text-slate-500 block">剩餘</span><span class="text-sm font-bold text-emerald-400">$${rem.toFixed(1)}</span>`;
+        }
+      } else {
+        $('sm-bar-wrap').classList.add('hidden');
+        $('sm-status').innerHTML = '';
+      }
+    }
+
+    $('sm-minus').onclick = () => { const v = +$('sm-qty').value || 1; if (v > 1) $('sm-qty').value = v - 1; };
+    $('sm-plus').onclick = () => { $('sm-qty').value = (+$('sm-qty').value || 1) + 1; };
+    $('sm-form').onsubmit = e => {
+      e.preventDefault();
+      const name = $('sm-name').value, price = parseFloat($('sm-price').value), qty = +$('sm-qty').value || 1;
+      if (isNaN(price) || price < 0) return;
+      items.unshift({ id: Date.now().toString(), name, price, qty });
+      save(); render();
+      $('sm-name').value = ''; $('sm-price').value = ''; $('sm-qty').value = 1; $('sm-price').focus();
+    };
+    if (budget != null) $('sm-budget').value = budget;
+    $('sm-budget').oninput = e => { const v = parseFloat(e.target.value); budget = !isNaN(v) && v > 0 ? v : null; saveB(); calc(); };
+    $('sm-disc').onchange = e => { disc = parseFloat(e.target.value); calc(); };
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id === 'supermarket') { items = []; save(); render(); }
+    });
+    render();
+  }
+
+  // ========== 5. Sushiro ==========
+  function initSushiro() {
+    const el = $('content-sushiro');
+    const DEFAULT_PLATES = [
+      { id: '1', name: '紅盤', price: 12, icon: '🔴', color: 'bg-red-500', count: 0 },
+      { id: '2', name: '銀盤', price: 17, icon: '⚪', color: 'bg-slate-400', count: 0 },
+      { id: '3', name: '金盤', price: 22, icon: '🟡', color: 'bg-amber-400', count: 0 },
+      { id: '4', name: '黑盤 / 特選', price: 27, icon: '⚫', color: 'bg-slate-800', count: 0 },
+      { id: '5', name: '甜品 / 飲品', price: 25, icon: '🍰', color: 'bg-pink-500', count: 0 },
+      { id: '6', name: '副食 / 拉麵', price: 32, icon: '🍜', color: 'bg-emerald-500', count: 0 },
+      { id: '7', name: '限定特價盤', price: 39, icon: '⭐', color: 'bg-indigo-600', count: 0 },
+    ];
+    const DEFAULT_DISHES = [
+      { id: 'd1', name: '三文魚壽司', plateId: '1', icon: '🍣' },
+      { id: 'd2', name: '炙燒芝士三文魚', plateId: '2', icon: '🔥' },
+      { id: 'd3', name: '特選大吞拿魚腩', plateId: '4', icon: '🐟' },
+      { id: 'd4', name: '茶碗蒸', plateId: '5', icon: '🥚' },
+      { id: 'd5', name: '鯛魚湯拉麵', plateId: '6', icon: '🍜' },
+      { id: 'd6', name: '卡達拉娜', plateId: '5', icon: '🍮' },
+      { id: 'd7', name: '本鮪大吞拿魚腩', plateId: '7', icon: '⭐' },
+    ];
+
+    let plates = JSON.parse(localStorage.getItem('su_plates') || 'null') || JSON.parse(JSON.stringify(DEFAULT_PLATES));
+    let dishes = JSON.parse(localStorage.getItem('su_dishes') || 'null') || JSON.parse(JSON.stringify(DEFAULT_DISHES));
+    let svc = true;
+
+    el.innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-gradient-to-r from-orange-600 to-red-600 text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <div class="flex items-center gap-2"><span class="text-2xl">🍣</span><h2 class="text-lg font-bold">壽司朗計數機</h2></div>
+            <p class="text-xs text-orange-100 mt-1">點擊盤色或熱門料理記錄數量</p>
+          </div>
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <label class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer">
+              <input type="checkbox" id="su-svc" checked class="w-4 h-4 accent-red-500 rounded"> 加一 (10%)
+            </label>
+            <button id="su-edit" class="flex items-center text-xs bg-white text-orange-600 font-bold px-3 py-2 rounded-xl shadow-sm"><i data-lucide="settings" class="w-3.5 h-3.5 mr-1"></i>改價</button>
+          </div>
+        </div>
+        <div id="su-settings" class="hidden bg-orange-500/10 border border-orange-500/30 p-4 rounded-2xl space-y-3">
+          <div class="flex justify-between items-center border-b border-orange-500/20 pb-2">
+            <h3 class="text-sm font-bold text-orange-300 flex items-center gap-1.5"><i data-lucide="sliders" class="w-4 h-4"></i>自訂盤價</h3>
+            <button id="su-addp" class="text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><i data-lucide="plus" class="w-3.5 h-3.5"></i>新增</button>
+          </div>
+          <div id="su-setlist" class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto"></div>
+        </div>
+        <div id="su-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        <section class="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-1.5"><i data-lucide="utensils" class="w-4 h-4 text-red-400"></i>熱門特別料理</h3>
+            <button id="su-addd" class="text-xs font-semibold text-orange-400 flex items-center gap-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>新增菜色</button>
+          </div>
+          <form id="su-dform" class="hidden bg-orange-500/10 p-3 rounded-xl border border-orange-500/30 space-y-2">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input type="text" id="su-dname" placeholder="菜色名稱" class="px-3 py-1.5 bg-slate-900 border border-slate-600 rounded-lg text-xs text-white outline-none">
+              <select id="su-dplate" class="px-2 py-1.5 bg-slate-900 border border-slate-600 rounded-lg text-xs font-semibold text-slate-200 outline-none"></select>
+              <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs">加入</button>
+            </div>
+          </form>
+          <div id="su-dishes" class="flex flex-wrap gap-2"></div>
+        </section>
+        <div class="bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden">
+          <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between">
+            <span class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5"><i data-lucide="receipt" class="w-4 h-4 text-red-400"></i>點餐明細</span>
+            <span id="su-badge" class="text-xs font-bold bg-red-500/20 text-red-400 px-2.5 py-0.5 rounded-full">共 0 份</span>
+          </div>
+          <ul id="su-sum" class="divide-y divide-slate-800 min-h-[50px]"></ul>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl flex justify-between items-center sticky bottom-0">
+          <div>
+            <div class="text-xs text-slate-500 flex items-center gap-2"><span>小計: $<span id="su-sub">0</span></span><span id="su-extra" class="font-semibold text-orange-400"></span></div>
+            <div class="flex items-baseline gap-1 mt-0.5"><span class="text-xs text-slate-400">總金額</span><span class="text-3xl font-black text-red-400">$<span id="su-grand">0</span></span></div>
+          </div>
+          <button id="su-clear" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl font-bold text-sm flex items-center gap-1.5 active:scale-95"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>清除</button>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    const saveP = () => localStorage.setItem('su_plates', JSON.stringify(plates));
+    const saveD = () => localStorage.setItem('su_dishes', JSON.stringify(dishes));
+
+    function renderGrid() {
+      const g = $('su-grid'); g.innerHTML = '';
+      plates.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800/80 p-4 rounded-2xl border border-slate-700 flex flex-col justify-between space-y-3';
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-xl ${p.color || 'bg-red-500'} flex items-center justify-center text-xl shadow-inner">${p.icon || '🍣'}</div>
+              <div><h3 class="font-bold text-slate-200 text-sm">${p.name}</h3><span class="font-extrabold text-red-400 text-sm">$${p.price}</span></div>
+            </div>
+            <span class="text-xs font-bold text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg">${p.count} 份</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="su-m flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-extrabold text-lg rounded-xl active:scale-95" data-id="${p.id}">-</button>
+            <div class="w-14 py-1.5 bg-slate-900 border border-slate-600 rounded-xl text-center font-extrabold text-white">${p.count}</div>
+            <button class="su-p flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-extrabold text-lg rounded-xl active:scale-95" data-id="${p.id}">+</button>
+          </div>`;
+        card.querySelector('.su-p').onclick = () => { p.count++; saveP(); refresh(); };
+        card.querySelector('.su-m').onclick = () => { p.count = Math.max(0, p.count - 1); saveP(); refresh(); };
+        g.appendChild(card);
+      });
+    }
+
+    function renderDishes() {
+      const cont = $('su-dishes'), sel = $('su-dplate');
+      cont.innerHTML = ''; sel.innerHTML = '';
+      plates.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = `${p.name} ($${p.price})`; sel.appendChild(o); });
+      dishes.forEach(d => {
+        const tp = plates.find(p => p.id === d.plateId);
+        const price = tp ? tp.price : 0;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'flex items-center gap-1.5 bg-slate-900 hover:bg-orange-500/10 border border-slate-600 hover:border-orange-500/50 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 transition active:scale-95';
+        btn.innerHTML = `<span>${d.icon || '🍣'}</span><span>${d.name}</span><span class="text-red-400 font-bold">($${price})</span>`;
+        btn.onclick = () => { if (tp) { tp.count++; saveP(); refresh(); } };
+        cont.appendChild(btn);
+      });
+    }
+
+    function renderSum() {
+      const list = $('su-sum'); list.innerHTML = '';
+      const sel = plates.filter(p => p.count > 0);
+      const totC = plates.reduce((s, p) => s + p.count, 0);
+      $('su-badge').textContent = `共 ${totC} 份`;
+      if (!sel.length) { list.innerHTML = '<li class="p-4 text-center text-slate-500 text-xs">尚未記錄任何盤數</li>'; return; }
+      sel.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'px-4 py-2.5 flex justify-between items-center text-xs sm:text-sm';
+        li.innerHTML = `<div class="flex items-center gap-2"><span>${p.icon}</span><span class="font-bold text-slate-300">${p.name}</span><span class="text-slate-500 text-xs">($${p.price})</span></div>
+          <div class="flex items-center gap-3"><span class="font-semibold text-slate-400">x ${p.count}</span><span class="font-bold text-white w-16 text-right">$${p.price * p.count}</span></div>`;
+        list.appendChild(li);
+      });
+    }
+
+    function renderSettings() {
+      const cont = $('su-setlist'); cont.innerHTML = '';
+      plates.forEach(p => {
+        const d = document.createElement('div');
+        d.className = 'flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-orange-500/30 text-xs';
+        d.innerHTML = `
+          <input type="text" value="${p.icon || '🍣'}" class="w-8 px-1 py-1 text-center border border-slate-600 rounded-md bg-slate-800 text-white outline-none" data-id="${p.id}" data-f="icon">
+          <input type="text" value="${p.name}" class="flex-1 px-2 py-1 border border-slate-600 rounded-md font-medium text-slate-200 bg-slate-800 outline-none" data-id="${p.id}" data-f="name">
+          <div class="flex items-center gap-1"><span class="text-slate-400">$</span><input type="number" min="0" value="${p.price}" class="w-16 px-2 py-1 border border-slate-600 rounded-md font-bold text-white bg-slate-800 outline-none" data-id="${p.id}" data-f="price"></div>
+          <button class="text-slate-500 hover:text-red-400 p-1" data-id="${p.id}" data-act="del"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
+        d.querySelectorAll('input').forEach(inp => {
+          inp.onchange = () => {
+            const pl = plates.find(x => x.id === inp.dataset.id);
+            if (!pl) return;
+            if (inp.dataset.f === 'icon') pl.icon = inp.value || '🍣';
+            if (inp.dataset.f === 'name') pl.name = inp.value || '壽司盤';
+            if (inp.dataset.f === 'price') pl.price = Math.max(0, parseFloat(inp.value) || 0);
+            saveP(); refresh();
+          };
+        });
+        d.querySelector('[data-act="del"]').onclick = () => {
+          if (plates.length <= 1) return;
+          plates = plates.filter(x => x.id !== p.id);
+          saveP(); refresh(); renderSettings();
+        };
+        cont.appendChild(d);
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function calc() {
+      const sub = plates.reduce((s, p) => s + p.price * p.count, 0);
+      const grand = svc ? sub * 1.1 : sub;
+      txt('su-sub', sub);
+      txt('su-grand', Math.round(grand).toLocaleString());
+      $('su-extra').textContent = svc && sub > 0 ? '(已加 10% 服務費)' : '';
+    }
+
+    function refresh() {
+      renderGrid(); renderDishes(); renderSum(); calc();
+    }
+
+    $('su-svc').onchange = e => { svc = e.target.checked; calc(); };
+    $('su-edit').onclick = () => { $('su-settings').classList.toggle('hidden'); };
+    $('su-addp').onclick = () => {
+      plates.push({ id: Date.now().toString(), name: '新自訂盤', price: 20, icon: '🍱', color: 'bg-purple-500', count: 0 });
+      saveP(); refresh(); renderSettings();
+    };
+    $('su-addd').onclick = () => $('su-dform').classList.toggle('hidden');
+    $('su-dform').onsubmit = e => {
+      e.preventDefault();
+      const name = $('su-dname').value.trim();
+      if (!name) return;
+      dishes.push({ id: Date.now().toString(), name, plateId: $('su-dplate').value, icon: '🍣' });
+      saveD(); renderDishes(); $('su-dname').value = ''; $('su-dform').classList.add('hidden');
+    };
+    $('su-clear').onclick = () => { plates.forEach(p => p.count = 0); saveP(); refresh(); };
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id === 'sushiro') {
+        plates = JSON.parse(JSON.stringify(DEFAULT_PLATES));
+        dishes = JSON.parse(JSON.stringify(DEFAULT_DISHES));
+        svc = true; $('su-svc').checked = true;
+        saveP(); saveD(); refresh(); renderSettings();
+      }
+    });
+
+    refresh();
+    renderSettings();
+  }
+
+  // ========== Boot ==========
+  buildShell();
+  initBMI();
+  initMortgage();
+  initParty();
+  initSupermarket();
+  initSushiro();
+  goTo(0, false);
+})();
+</script>
+</body>
+</html>
