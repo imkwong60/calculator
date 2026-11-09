@@ -53,6 +53,7 @@
         <div>
           <h1 id="hdr-title" class="text-base font-bold text-slate-800 leading-tight">BMI & 熱量</h1>
           <p class="text-[10px] text-slate-400">左右滑動切換 · 五合一計數機</p>
+          <p id="offline-status" class="text-[10px] text-emerald-600" role="status" aria-live="polite">離線功能準備中</p>
         </div>
       </div>
       <button id="btn-reset" class="flex items-center text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full transition active:scale-95 font-medium" aria-label="重設目前計數機">
@@ -141,16 +142,16 @@
     icon.className = `w-9 h-9 rounded-xl ${c.bg} flex items-center justify-center shadow-sm`;
     icon.innerHTML = `<i data-lucide="${c.icon}" class="w-5 h-5 text-white"></i>`;
     document.querySelectorAll('.nav-btn').forEach((b, i) => {
-      const ic = b.querySelector('i'), sp = b.querySelector('span');
+      const ic = b.querySelector('i, svg'), sp = b.querySelector('span');
       if (i === idx) {
         b.classList.add('bg-slate-100');
         b.setAttribute('aria-selected', 'true');
-        ic.className = `w-5 h-5 ${c.accent}`;
+        ic.setAttribute('class', `w-5 h-5 ${c.accent}`);
         sp.className = 'text-[10px] font-medium text-slate-800';
       } else {
         b.classList.remove('bg-slate-100');
         b.setAttribute('aria-selected', 'false');
-        ic.className = 'w-5 h-5 text-slate-400';
+        ic.setAttribute('class', 'w-5 h-5 text-slate-400');
         sp.className = 'text-[10px] font-medium text-slate-400';
       }
     });
@@ -1185,6 +1186,32 @@
     renderSettings();
   }
 
+  if ('serviceWorker' in navigator) {
+    const status = $('offline-status');
+    const watchWorker = worker => {
+      if (!worker) return;
+      const update = () => {
+        if (worker.state === 'activated') status.textContent = '離線功能已準備妥當';
+        else if (worker.state === 'redundant') status.textContent = '離線快取失敗，請連線後重新載入';
+      };
+      worker.addEventListener('statechange', update);
+      update();
+    };
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        watchWorker(reg.active);
+        watchWorker(reg.installing);
+        watchWorker(reg.waiting);
+        reg.addEventListener('updatefound', () => watchWorker(reg.installing));
+      })
+      .catch(err => {
+        status.textContent = '無法啟用離線功能，請使用 HTTPS 並連線重試';
+        console.warn('SW registration failed', err);
+      });
+  } else {
+    $('offline-status').textContent = '此瀏覽器不支援離線功能';
+  }
+
   // ========== Boot ==========
   buildShell();
   initBMI();
@@ -1193,14 +1220,6 @@
   initSupermarket();
   initSushiro();
   goTo(0, false);
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('SW registered', reg.scope))
-        .catch(err => console.warn('SW registration failed', err));
-    });
-  }
 })();
 </script>
 </body>
