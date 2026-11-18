@@ -278,14 +278,14 @@
       $('hdr-sub').textContent = '返回首頁可切換其他計算機';
     }
     if (window.lucide) lucide.createIcons();
-    // 更新首頁星星狀態
-    if (isHome) renderHomeGrid();
+    // 唔好喺呢度 renderHomeGrid：會拆咗 DOM，iPhone 上 click 會失效
   }
 
   function toggleEditFav() {
     if (currentId !== null) return;
     editFavMode = !editFavMode;
     updateHeader();
+    renderHomeGrid(); // 只喺切換編輯模式時重繪
   }
 
   function toggleFavorite(id) {
@@ -438,6 +438,7 @@
     const vp = $('viewport');
     const track = $('track');
     const total = () => CALCS.length + 1;
+    const isInteractive = (el) => !!(el && el.closest && el.closest('input, select, button, textarea, a, label, .home-card, .nav-btn, [role="button"]'));
 
     const onStart = (x, y) => {
       dragging = true;
@@ -449,8 +450,7 @@
       locked = null;
       panelW = vp.clientWidth;
       track.style.transition = 'none';
-      track.style.willChange = 'transform';
-      document.body.classList.add('swiping');
+      // 唔好一開始就加 swiping，等確認係橫向滑先
     };
 
     const onMove = (x, y, e) => {
@@ -466,9 +466,14 @@
       lastMoveX = x;
       lastMoveT = now;
 
-      if (!locked && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
-        locked = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'h' : 'v';
+      if (!locked && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+        locked = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v';
+        if (locked === 'h') {
+          document.body.classList.add('swiping');
+          track.style.willChange = 'transform';
+        }
       }
+      // 垂直捲動：唔攔截，等瀏覽器處理
       if (locked === 'v' || locked !== 'h') return;
       if (e && e.cancelable) e.preventDefault();
 
@@ -482,8 +487,10 @@
       if (!dragging) return;
       dragging = false;
       document.body.classList.remove('swiping');
+      track.style.willChange = 'auto';
+
+      // 冇確認橫向滑動 → 唔呼叫 goTo，避免重繪搶走 click
       if (locked !== 'h') {
-        goTo(idx, true);
         locked = null;
         velocityX = 0;
         return;
@@ -503,14 +510,17 @@
     };
 
     vp.addEventListener('touchstart', e => {
+      if (isInteractive(e.target)) return; // 按鈕／輸入框唔啟動滑動
       const t = e.touches[0];
       onStart(t.clientX, t.clientY);
     }, { passive: true });
     vp.addEventListener('touchmove', e => {
+      if (!dragging) return;
       const t = e.touches[0];
       onMove(t.clientX, t.clientY, e);
     }, { passive: false });
     vp.addEventListener('touchend', e => {
+      if (!dragging) return;
       const t = e.changedTouches[0];
       onEnd(t.clientX);
     }, { passive: true });
@@ -518,12 +528,13 @@
       if (!dragging) return;
       dragging = false;
       document.body.classList.remove('swiping');
-      goTo(idx, true);
+      track.style.willChange = 'auto';
+      if (locked === 'h') goTo(idx, true);
       locked = null;
       velocityX = 0;
     }, { passive: true });
     vp.addEventListener('mousedown', e => {
-      if (e.target.closest('input, select, button, textarea, a, label')) return;
+      if (isInteractive(e.target)) return;
       e.preventDefault();
       onStart(e.clientX, e.clientY);
     });
