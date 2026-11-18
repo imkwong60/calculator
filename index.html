@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f8fafc" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="description" content="多功能計數機：BMI、按揭、聚會分帳、超市購物、壽司朗" />
+  <meta name="description" content="多功能計數機：BMI、按揭、聚會分帳、超市購物、壽司朗，可自訂常用" />
   <title>多功能計數機</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
@@ -40,25 +40,70 @@
     .btn-soft-minus { background: #f1f5f9; color: #64748b; }
     .btn-soft-plus { background: #fff1f2; color: #e11d48; }
     .btn-soft-minus:active, .btn-soft-plus:active { transform: scale(0.96); }
+    /* extra colors for time / unit calculators */
+    .text-purple-500 { color: #a855f7; }
+    .text-purple-100 { color: #f3e8ff; }
+    .from-purple-500 { --tw-gradient-from: #a855f7 var(--tw-gradient-from-position); --tw-gradient-to: rgb(168 85 247 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+    .bg-teal-500 { background-color: #14b8a6; }
+    .text-teal-600 { color: #0d9488; }
+    .text-teal-100 { color: #ccfbf1; }
+    .from-teal-500 { --tw-gradient-from: #14b8a6 var(--tw-gradient-from-position); --tw-gradient-to: rgb(20 184 166 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+    .to-emerald-600 { --tw-gradient-to: #059669 var(--tw-gradient-to-position); }
+    .border-teal-100 { border-color: #ccfbf1; }
+    .bg-teal-50 { background-color: #f0fdfa; }
+    .bg-slate-700 { background-color: #334155; }
+    .cheque-preview {
+      background: linear-gradient(135deg, #f0f7fc 0%, #e8f0f8 100%);
+      background-image: radial-gradient(#c5d8ea 0.6px, transparent 0.6px);
+      background-size: 10px 10px;
+    }
+    .cheque-crossed { position: relative; }
+    .cheque-crossed::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 12px;
+      width: 56px; height: 36px;
+      border-left: 2px solid #1e3a5f;
+      border-right: 2px solid #1e3a5f;
+      transform: rotate(-25deg);
+      pointer-events: none; z-index: 5;
+    }
+    .cheque-crossed::after {
+      content: 'A/C PAYEE ONLY';
+      position: absolute;
+      top: 18px; left: 6px;
+      font-size: 7px; font-weight: 700;
+      color: #1e3a5f;
+      transform: rotate(-25deg);
+      white-space: nowrap;
+      pointer-events: none; z-index: 5;
+    }
   </style>
 </head>
 <body class="h-full bg-slate-50 text-slate-800 antialiased">
   <div id="app" class="h-full flex flex-col max-w-lg mx-auto relative bg-slate-50">
 
     <header id="topbar" class="px-4 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0 bg-white border-b border-slate-100 shadow-sm">
-      <div class="flex items-center gap-2.5">
-        <div id="hdr-icon" class="w-9 h-9 rounded-xl bg-rose-500 flex items-center justify-center shadow-sm">
-          <i data-lucide="activity" class="w-5 h-5 text-white"></i>
+      <div class="flex items-center gap-2.5 min-w-0">
+        <button id="btn-home" class="hidden w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 active:scale-95 transition" aria-label="返回首頁">
+          <i data-lucide="arrow-left" class="w-5 h-5 text-slate-600"></i>
+        </button>
+        <div id="hdr-icon" class="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shadow-sm shrink-0">
+          <i data-lucide="layout-grid" class="w-5 h-5 text-white"></i>
         </div>
-        <div>
-          <h1 id="hdr-title" class="text-base font-bold text-slate-800 leading-tight">BMI & 熱量</h1>
-          <p class="text-[10px] text-slate-400">左右滑動切換 · 五合一計數機</p>
-          <p id="offline-status" class="text-[10px] text-emerald-600" role="status" aria-live="polite">離線功能準備中</p>
+        <div class="min-w-0">
+          <h1 id="hdr-title" class="text-base font-bold text-slate-800 leading-tight truncate">全部計數機</h1>
+          <p id="hdr-sub" class="text-[10px] text-slate-400 truncate">選擇計算機 · 可自訂底部常用</p>
         </div>
       </div>
-      <button id="btn-reset" class="flex items-center text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full transition active:scale-95 font-medium" aria-label="重設目前計數機">
-        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1"></i> 重設
-      </button>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btn-edit-fav" class="flex items-center text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-full transition active:scale-95 font-medium" aria-label="編輯常用計算機">
+          <i data-lucide="star" class="w-3.5 h-3.5 mr-1"></i> 常用
+        </button>
+        <button id="btn-reset" class="hidden flex items-center text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full transition active:scale-95 font-medium" aria-label="重設目前計數機">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1"></i> 重設
+        </button>
+      </div>
     </header>
 
     <div id="viewport" class="flex-1 overflow-hidden relative">
@@ -74,12 +119,16 @@
 (function () {
   'use strict';
 
+  // 全部可用的計算機（之後加新機就只係喺呢度加）
   const CALCS = [
-    { id: 'bmi', name: 'BMI & 熱量', short: 'BMI', icon: 'activity', accent: 'text-rose-500', bg: 'bg-rose-500' },
-    { id: 'mortgage', name: '按揭計數機', short: '按揭', icon: 'home', accent: 'text-blue-500', bg: 'bg-blue-500' },
-    { id: 'party', name: '聚會分帳', short: '分帳', icon: 'party-popper', accent: 'text-indigo-500', bg: 'bg-indigo-500' },
-    { id: 'supermarket', name: '超市購物', short: '超市', icon: 'shopping-cart', accent: 'text-emerald-500', bg: 'bg-emerald-500' },
-    { id: 'sushiro', name: '壽司朗', short: '壽司', icon: 'utensils', accent: 'text-orange-500', bg: 'bg-orange-500' },
+    { id: 'bmi', name: 'BMI & 熱量', short: 'BMI', icon: 'activity', accent: 'text-rose-500', bg: 'bg-rose-500', desc: 'BMI、BMR、TDEE 熱量分析' },
+    { id: 'mortgage', name: '按揭計數機', short: '按揭', icon: 'home', accent: 'text-blue-500', bg: 'bg-blue-500', desc: '每月供款、利息、最低月入' },
+    { id: 'party', name: '聚會分帳', short: '分帳', icon: 'party-popper', accent: 'text-indigo-500', bg: 'bg-indigo-500', desc: '多人分帳、結算誰欠誰' },
+    { id: 'supermarket', name: '超市購物', short: '超市', icon: 'shopping-cart', accent: 'text-emerald-500', bg: 'bg-emerald-500', desc: '購物清單、預算、折扣' },
+    { id: 'sushiro', name: '壽司朗', short: '壽司', icon: 'utensils', accent: 'text-orange-500', bg: 'bg-orange-500', desc: '各色盤子計數、加一服務費' },
+    { id: 'time', name: '時間計算機', short: '時間', icon: 'clock', accent: 'text-purple-500', bg: 'bg-purple-500', desc: '日期相差、時間相差、日期加減' },
+    { id: 'unit', name: '單位轉換', short: '單位', icon: 'ruler', accent: 'text-teal-600', bg: 'bg-teal-500', desc: '長度面積、重量、烹飪、鞋碼衣碼' },
+    { id: 'cheque', name: '支票本本', short: '支票', icon: 'banknote', accent: 'text-slate-600', bg: 'bg-slate-700', desc: '港幣大寫、劃線支票、開票紀錄' },
   ];
 
   // BMI bar segments: [min, max, widthPercent]
@@ -90,40 +139,104 @@
     { min: 28, max: 40, width: 25, label: '肥胖' },
   ];
 
+  // 底部常用（最多 5 個），會記住
+  const MAX_FAV = 5;
+  let favorites = JSON.parse(localStorage.getItem('fav_calcs') || 'null');
+  if (!Array.isArray(favorites) || !favorites.length) {
+    favorites = CALCS.map(c => c.id).slice(0, MAX_FAV);
+  }
+  favorites = favorites.filter(id => CALCS.some(c => c.id === id)).slice(0, MAX_FAV);
+
+  // 目前顯示：null = 首頁，否則係計算機 id
+  let currentId = null;
+  let editFavMode = false;
+  let homeSearch = ''; // 首頁搜尋關鍵字
   let idx = 0, startX = 0, startY = 0, currX = 0, dragging = false, panelW = 0, locked = null;
+
   const $ = id => document.getElementById(id);
   const val = (id, def = 0) => parseFloat($(id)?.value) || def;
   const txt = (id, v) => { if ($(id)) $(id).textContent = v; };
   const round1 = n => Math.round(n * 10) / 10;
   const money = n => round1(n).toFixed(1);
+  const getCalc = id => CALCS.find(c => c.id === id);
+
+  function saveFavorites() {
+    localStorage.setItem('fav_calcs', JSON.stringify(favorites));
+  }
 
   function buildShell() {
     const track = $('track');
-    const nav = document.querySelector('nav');
-    track.innerHTML = CALCS.map((c, i) => `
-      <div class="panel w-full h-full shrink-0 overflow-y-auto bg-slate-50" data-i="${i}" id="panel-${c.id}" role="tabpanel">
+    // Home panel + 所有計算機 panels（方便之後直接跳去任何一個）
+    track.innerHTML = `
+      <div class="panel w-full h-full shrink-0 overflow-y-auto bg-slate-50" data-i="0" id="panel-home" role="tabpanel">
+        <div class="p-4 pb-8 min-h-full" id="content-home"></div>
+      </div>
+      ${CALCS.map((c, i) => `
+      <div class="panel w-full h-full shrink-0 overflow-y-auto bg-slate-50" data-i="${i + 1}" id="panel-${c.id}" role="tabpanel">
         <div class="p-4 pb-8 min-h-full" id="content-${c.id}"></div>
-      </div>`).join('');
-    nav.innerHTML = CALCS.map((c, i) => `
-      <button class="nav-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[56px] transition ${i===0?'bg-slate-100':''}" data-i="${i}" role="tab" aria-selected="${i===0}" aria-label="${c.name}">
-        <i data-lucide="${c.icon}" class="w-5 h-5 ${i===0?c.accent:'text-slate-400'}"></i>
-        <span class="text-[10px] font-medium ${i===0?'text-slate-800':'text-slate-400'}">${c.short}</span>
-      </button>`).join('');
+      </div>`).join('')}`;
+
+    renderBottomNav();
+    initHome();
     if (window.lucide) lucide.createIcons();
     setupSwipe();
     setupNav();
-    $('btn-reset').onclick = () => window.dispatchEvent(new CustomEvent('reset-calc', { detail: { id: CALCS[idx].id } }));
+
+    $('btn-reset').onclick = () => {
+      if (currentId) window.dispatchEvent(new CustomEvent('reset-calc', { detail: { id: currentId } }));
+    };
+    $('btn-home').onclick = () => goHome(true);
+    $('btn-edit-fav').onclick = () => toggleEditFav();
+  }
+
+  function renderBottomNav() {
+    const nav = document.querySelector('nav');
+    const favList = favorites.map(id => getCalc(id)).filter(Boolean);
+    nav.innerHTML = favList.map((c) => {
+      const active = currentId === c.id;
+      return `
+      <button class="nav-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[56px] transition ${active ? 'bg-slate-100' : ''}"
+        data-id="${c.id}" role="tab" aria-selected="${active}" aria-label="${c.name}">
+        <i data-lucide="${c.icon}" class="w-5 h-5 ${active ? c.accent : 'text-slate-400'}"></i>
+        <span class="text-[10px] font-medium ${active ? 'text-slate-800' : 'text-slate-400'}">${c.short}</span>
+      </button>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+    setupNav();
+  }
+
+  // 面板順序：0 = home, 1..n = CALCS
+  function panelIndexOf(id) {
+    if (id === null || id === 'home') return 0;
+    const i = CALCS.findIndex(c => c.id === id);
+    return i >= 0 ? i + 1 : 0;
+  }
+
+  function goHome(anim = true) {
+    currentId = null;
+    editFavMode = false;
+    goTo(0, anim);
+  }
+
+  function openCalc(id, anim = true) {
+    if (!getCalc(id)) return;
+    currentId = id;
+    editFavMode = false;
+    goTo(panelIndexOf(id), anim);
   }
 
   function goTo(i, anim = true) {
-    if (i < 0 || i >= CALCS.length) return;
+    const total = CALCS.length + 1; // home + all
+    if (i < 0 || i >= total) return;
     idx = i;
+    if (i === 0) currentId = null;
+    else currentId = CALCS[i - 1].id;
+
     panelW = $('viewport').clientWidth;
     currX = -i * panelW;
     const t = $('track');
     if (anim) {
       t.style.willChange = 'transform';
-      // Short ease-out — no overshoot/bounce
       t.style.transition = 'transform .22s cubic-bezier(0.2, 0.0, 0.0, 1)';
       const onEnd = () => { t.style.willChange = 'auto'; t.style.transition = 'none'; t.removeEventListener('transitionend', onEnd); };
       t.addEventListener('transitionend', onEnd);
@@ -133,37 +246,198 @@
     }
     t.style.transform = `translateX(${currX}px)`;
     updateHeader();
+    renderBottomNav();
   }
 
   function updateHeader() {
-    const c = CALCS[idx];
-    $('hdr-title').textContent = c.name;
+    const isHome = currentId === null;
+    const btnHome = $('btn-home');
+    const btnReset = $('btn-reset');
+    const btnEdit = $('btn-edit-fav');
     const icon = $('hdr-icon');
-    icon.className = `w-9 h-9 rounded-xl ${c.bg} flex items-center justify-center shadow-sm`;
-    icon.innerHTML = `<i data-lucide="${c.icon}" class="w-5 h-5 text-white"></i>`;
-    document.querySelectorAll('.nav-btn').forEach((b, i) => {
-      const ic = b.querySelector('i, svg'), sp = b.querySelector('span');
-      if (i === idx) {
-        b.classList.add('bg-slate-100');
-        b.setAttribute('aria-selected', 'true');
-        ic.setAttribute('class', `w-5 h-5 ${c.accent}`);
-        sp.className = 'text-[10px] font-medium text-slate-800';
-      } else {
-        b.classList.remove('bg-slate-100');
-        b.setAttribute('aria-selected', 'false');
-        ic.setAttribute('class', 'w-5 h-5 text-slate-400');
-        sp.className = 'text-[10px] font-medium text-slate-400';
-      }
-    });
+
+    if (isHome) {
+      btnHome.classList.add('hidden');
+      btnReset.classList.add('hidden');
+      btnEdit.classList.remove('hidden');
+      icon.className = 'w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center shadow-sm shrink-0';
+      icon.innerHTML = '<i data-lucide="layout-grid" class="w-5 h-5 text-white"></i>';
+      $('hdr-title').textContent = editFavMode ? '選擇常用（最多5個）' : '全部計數機';
+      $('hdr-sub').textContent = editFavMode ? '點星號加入／移出底部' : '選擇計算機 · 可自訂底部常用';
+      btnEdit.innerHTML = editFavMode
+        ? '<i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> 完成'
+        : '<i data-lucide="star" class="w-3.5 h-3.5 mr-1"></i> 常用';
+    } else {
+      const c = getCalc(currentId);
+      btnHome.classList.remove('hidden');
+      btnReset.classList.remove('hidden');
+      btnEdit.classList.add('hidden');
+      icon.className = `w-9 h-9 rounded-xl ${c.bg} flex items-center justify-center shadow-sm shrink-0`;
+      icon.innerHTML = `<i data-lucide="${c.icon}" class="w-5 h-5 text-white"></i>`;
+      $('hdr-title').textContent = c.name;
+      $('hdr-sub').textContent = '返回首頁可切換其他計算機';
+    }
     if (window.lucide) lucide.createIcons();
+    // 更新首頁星星狀態
+    if (isHome) renderHomeGrid();
   }
 
-  // ========== Swipe with direction lock + velocity (smooth, no bounce) ==========
+  function toggleEditFav() {
+    if (currentId !== null) return;
+    editFavMode = !editFavMode;
+    updateHeader();
+  }
+
+  function toggleFavorite(id) {
+    const pos = favorites.indexOf(id);
+    if (pos >= 0) {
+      if (favorites.length <= 1) return; // 至少留一個
+      favorites.splice(pos, 1);
+    } else {
+      if (favorites.length >= MAX_FAV) {
+        // 已滿：把最舊的頂走，或提示
+        favorites.shift();
+      }
+      favorites.push(id);
+    }
+    saveFavorites();
+    renderBottomNav();
+    renderHomeGrid();
+  }
+
+  // ========== Home grid ==========
+  function initHome() {
+    renderHomeGrid();
+  }
+
+  function renderHomeGrid() {
+    const el = $('content-home');
+    if (!el) return;
+    const favSet = new Set(favorites);
+    const q = (homeSearch || '').trim().toLowerCase();
+    const filtered = q
+      ? CALCS.filter(c =>
+          c.name.toLowerCase().includes(q) ||
+          c.short.toLowerCase().includes(q) ||
+          (c.desc || '').toLowerCase().includes(q) ||
+          c.id.toLowerCase().includes(q)
+        )
+      : CALCS;
+
+    el.innerHTML = `
+      <div class="space-y-4">
+        <!-- 搜尋欄（置頂） -->
+        <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-400">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+          <input type="search" id="home-search" value="${homeSearch.replace(/"/g, '&quot;')}"
+            placeholder="搜尋計算機（名稱、簡稱…）"
+            class="flex-1 min-w-0 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none border-0 p-0"
+            autocomplete="off" enterkeyhint="search">
+          <button type="button" id="home-search-clear" class="${q ? 'flex' : 'hidden'} w-7 h-7 rounded-full bg-slate-100 items-center justify-center text-slate-400 hover:text-slate-600 shrink-0" aria-label="清除搜尋">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        ${editFavMode ? `
+        <div class="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 text-xs text-amber-800 flex items-center gap-2">
+          <i data-lucide="info" class="w-4 h-4 text-amber-500 shrink-0"></i>
+          <span>已選 <b>${favorites.length}</b> / ${MAX_FAV} 個常用。再點星號可加入或移出。</span>
+        </div>` : ''}
+
+        <div class="grid grid-cols-2 gap-3" id="home-grid">
+          ${filtered.length ? filtered.map(c => {
+            const isFav = favSet.has(c.id);
+            return `
+            <button type="button" class="home-card relative text-left bg-white p-4 rounded-2xl border border-slate-100 shadow-sm active:scale-[0.98] transition hover:border-slate-200"
+              data-id="${c.id}">
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <div class="w-11 h-11 rounded-xl ${c.bg} flex items-center justify-center shadow-sm">
+                  <i data-lucide="${c.icon}" class="w-5 h-5 text-white"></i>
+                </div>
+                <span class="fav-star w-8 h-8 rounded-full flex items-center justify-center ${isFav ? 'bg-amber-50 text-amber-500' : 'bg-slate-50 text-slate-300'} ${editFavMode ? '' : 'opacity-80'}"
+                  data-star="${c.id}" aria-label="${isFav ? '移出常用' : '加入常用'}">
+                  <i data-lucide="star" class="w-4 h-4 ${isFav ? 'fill-current' : ''}"></i>
+                </span>
+              </div>
+              <h3 class="font-bold text-slate-800 text-sm leading-snug">${c.name}</h3>
+              <p class="text-[11px] text-slate-400 mt-1 leading-snug">${c.desc || ''}</p>
+              ${isFav ? '<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400"></span>' : ''}
+            </button>`;
+          }).join('') : `
+            <div class="col-span-2 py-10 text-center text-slate-400 text-sm">
+              <i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+              <p>找不到「${q}」相關的計算機</p>
+              <button type="button" id="home-search-reset" class="mt-3 text-indigo-500 font-medium text-xs">清除搜尋</button>
+            </div>`}
+        </div>
+
+        <p class="text-center text-[11px] text-slate-400 pt-1">
+          ${q ? `找到 ${filtered.length} 個結果 · ` : ''}共 ${CALCS.length} 個計算機 · 底部 ${favorites.length} 個常用
+        </p>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    // 搜尋輸入：即時過濾，保留游標位置
+    const searchInput = $('home-search');
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        homeSearch = e.target.value;
+        const pos = e.target.selectionStart;
+        renderHomeGrid();
+        const again = $('home-search');
+        if (again) {
+          again.focus();
+          try { again.setSelectionRange(pos, pos); } catch (_) {}
+        }
+      };
+      // 避免滑動時誤觸
+      searchInput.onclick = (e) => e.stopPropagation();
+    }
+    const clearBtn = $('home-search-clear');
+    if (clearBtn) {
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        homeSearch = '';
+        renderHomeGrid();
+        $('home-search')?.focus();
+      };
+    }
+    const resetBtn = $('home-search-reset');
+    if (resetBtn) {
+      resetBtn.onclick = () => {
+        homeSearch = '';
+        renderHomeGrid();
+      };
+    }
+
+    el.querySelectorAll('.home-card').forEach(card => {
+      card.onclick = (e) => {
+        const star = e.target.closest('[data-star]');
+        if (star || editFavMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFavorite(card.dataset.id);
+          return;
+        }
+        openCalc(card.dataset.id, true);
+      };
+    });
+    el.querySelectorAll('[data-star]').forEach(star => {
+      star.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavorite(star.dataset.star);
+      };
+    });
+  }
+
+  // ========== Swipe (Home + all calcs) ==========
   let lastMoveX = 0, lastMoveT = 0, velocityX = 0;
 
   function setupSwipe() {
     const vp = $('viewport');
     const track = $('track');
+    const total = () => CALCS.length + 1;
 
     const onStart = (x, y) => {
       dragging = true;
@@ -186,7 +460,6 @@
       const now = performance.now();
       const dt = now - lastMoveT;
       if (dt > 0) {
-        // Exponential smoothing for velocity (px/ms)
         const v = (x - lastMoveX) / dt;
         velocityX = velocityX * 0.6 + v * 0.4;
       }
@@ -196,16 +469,12 @@
       if (!locked && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
         locked = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'h' : 'v';
       }
-
-      if (locked === 'v') return;
-      if (locked !== 'h') return;
-
+      if (locked === 'v' || locked !== 'h') return;
       if (e && e.cancelable) e.preventDefault();
 
-      // Hard clamp at edges — no rubber-band resistance
       let d = dx;
       if (idx === 0 && d > 0) d = 0;
-      if (idx === CALCS.length - 1 && d < 0) d = 0;
+      if (idx === total() - 1 && d < 0) d = 0;
       track.style.transform = `translateX(${currX + d}px)`;
     };
 
@@ -213,20 +482,16 @@
       if (!dragging) return;
       dragging = false;
       document.body.classList.remove('swiping');
-
       if (locked !== 'h') {
         goTo(idx, true);
         locked = null;
         velocityX = 0;
         return;
       }
-
       const d = x - startX;
-      const th = panelW * 0.18; // distance threshold
-      // velocity threshold ~0.35 px/ms ≈ quick flick
+      const th = panelW * 0.18;
       const flick = Math.abs(velocityX) > 0.35;
-
-      if ((d < -th || (flick && velocityX < -0.35)) && idx < CALCS.length - 1) {
+      if ((d < -th || (flick && velocityX < -0.35)) && idx < total() - 1) {
         goTo(idx + 1, true);
       } else if ((d > th || (flick && velocityX > 0.35)) && idx > 0) {
         goTo(idx - 1, true);
@@ -241,17 +506,14 @@
       const t = e.touches[0];
       onStart(t.clientX, t.clientY);
     }, { passive: true });
-
     vp.addEventListener('touchmove', e => {
       const t = e.touches[0];
       onMove(t.clientX, t.clientY, e);
     }, { passive: false });
-
     vp.addEventListener('touchend', e => {
       const t = e.changedTouches[0];
       onEnd(t.clientX);
     }, { passive: true });
-
     vp.addEventListener('touchcancel', () => {
       if (!dragging) return;
       dragging = false;
@@ -260,7 +522,6 @@
       locked = null;
       velocityX = 0;
     }, { passive: true });
-
     vp.addEventListener('mousedown', e => {
       if (e.target.closest('input, select, button, textarea, a, label')) return;
       e.preventDefault();
@@ -268,12 +529,13 @@
     });
     window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY, null));
     window.addEventListener('mouseup', e => onEnd(e.clientX));
-
     window.addEventListener('resize', () => goTo(idx, false));
   }
 
   function setupNav() {
-    document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => goTo(+b.dataset.i)));
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.onclick = () => openCalc(b.dataset.id, true);
+    });
   }
 
   // ========== 1. BMI ==========
@@ -1186,30 +1448,1065 @@
     renderSettings();
   }
 
-  if ('serviceWorker' in navigator) {
-    const status = $('offline-status');
-    const watchWorker = worker => {
-      if (!worker) return;
-      const update = () => {
-        if (worker.state === 'activated') status.textContent = '離線功能已準備妥當';
-        else if (worker.state === 'redundant') status.textContent = '離線快取失敗，請連線後重新載入';
-      };
-      worker.addEventListener('statechange', update);
-      update();
-    };
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-      .then(reg => {
-        watchWorker(reg.active);
-        watchWorker(reg.installing);
-        watchWorker(reg.waiting);
-        reg.addEventListener('updatefound', () => watchWorker(reg.installing));
-      })
-      .catch(err => {
-        status.textContent = '無法啟用離線功能，請使用 HTTPS 並連線重試';
-        console.warn('SW registration failed', err);
+  // ========== 6. 時間計算機 ==========
+  function initTime() {
+    const el = $('content-time');
+    if (!el) return;
+
+    const today = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const toDateStr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const toTimeStr = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    el.innerHTML = `
+      <div class="space-y-4">
+        <!-- Mode tabs -->
+        <div class="bg-white p-1 rounded-2xl flex text-xs font-bold border border-slate-100 shadow-sm">
+          <button type="button" data-tm="date" class="tm-tab flex-1 py-2.5 rounded-xl bg-purple-500 text-white shadow-sm">日期相差</button>
+          <button type="button" data-tm="time" class="tm-tab flex-1 py-2.5 rounded-xl text-slate-400">時間相差</button>
+          <button type="button" data-tm="add" class="tm-tab flex-1 py-2.5 rounded-xl text-slate-400">日期加減</button>
+        </div>
+
+        <!-- 日期相差 -->
+        <div id="tm-panel-date" class="space-y-4">
+          <section class="card p-4 space-y-3">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="calendar" class="w-4 h-4 text-purple-500"></i>選擇兩個日期
+            </h2>
+            <div class="grid grid-cols-1 gap-3">
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">開始日期</label>
+                <input type="date" id="tm-d1" value="${toDateStr(today)}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">結束日期</label>
+                <input type="date" id="tm-d2" value="${toDateStr(today)}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="tm-d-swap" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center gap-1 active:scale-95">
+                <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> 對調
+              </button>
+              <button type="button" id="tm-d-today" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center gap-1 active:scale-95">
+                <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i> 結束=今天
+              </button>
+            </div>
+          </section>
+          <section class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-5 rounded-2xl shadow-lg space-y-3">
+            <div class="text-center">
+              <span class="text-xs text-purple-100 uppercase font-semibold tracking-wide">相差天數</span>
+              <div class="text-4xl font-black mt-1"><span id="tm-days">0</span> <span class="text-lg font-bold opacity-80">天</span></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/20 text-center text-xs">
+              <div><span class="text-purple-100 block">星期</span><span class="font-bold text-sm" id="tm-weeks">0</span></div>
+              <div><span class="text-purple-100 block">約月</span><span class="font-bold text-sm" id="tm-months">0</span></div>
+              <div><span class="text-purple-100 block">約年</span><span class="font-bold text-sm" id="tm-years">0</span></div>
+            </div>
+            <p class="text-[11px] text-purple-100/90 text-center pt-1" id="tm-date-hint">同一天</p>
+          </section>
+        </div>
+
+        <!-- 時間相差 -->
+        <div id="tm-panel-time" class="hidden space-y-4">
+          <section class="card p-4 space-y-3">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="clock" class="w-4 h-4 text-purple-500"></i>選擇兩個時間
+            </h2>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">開始時間</label>
+                <input type="time" id="tm-t1" value="${toTimeStr(today)}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">結束時間</label>
+                <input type="time" id="tm-t2" value="${toTimeStr(new Date(today.getTime() + 90 * 60000))}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+              </div>
+            </div>
+            <label class="flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer">
+              <input type="checkbox" id="tm-cross-day" class="w-4 h-4 accent-indigo-500 rounded">
+              <span class="text-xs font-semibold text-slate-600">跨日（結束時間係第二日）</span>
+            </label>
+          </section>
+          <section class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-5 rounded-2xl shadow-lg space-y-3">
+            <div class="text-center">
+              <span class="text-xs text-purple-100 uppercase font-semibold tracking-wide">時間差</span>
+              <div class="text-3xl font-black mt-1 tracking-tight" id="tm-hms">0 時 0 分</div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/20 text-center text-xs">
+              <div><span class="text-purple-100 block">總小時</span><span class="font-bold text-sm" id="tm-total-h">0</span></div>
+              <div><span class="text-purple-100 block">總分鐘</span><span class="font-bold text-sm" id="tm-total-m">0</span></div>
+              <div><span class="text-purple-100 block">總秒</span><span class="font-bold text-sm" id="tm-total-s">0</span></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 日期加減 -->
+        <div id="tm-panel-add" class="hidden space-y-4">
+          <section class="card p-4 space-y-3">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="calendar-plus" class="w-4 h-4 text-purple-500"></i>基準日期與加減
+            </h2>
+            <div>
+              <label class="block text-slate-500 mb-1 text-xs font-medium">基準日期</label>
+              <input type="date" id="tm-base" value="${toDateStr(today)}" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">數量</label>
+                <input type="number" id="tm-amt" value="7" step="1" inputmode="numeric" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">單位</label>
+                <select id="tm-unit" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none">
+                  <option value="day">日</option>
+                  <option value="week" selected>星期</option>
+                  <option value="month">月</option>
+                  <option value="year">年</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="tm-add" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold active:scale-95">＋ 加上</button>
+              <button type="button" id="tm-sub" class="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-red-600 text-white text-sm font-bold active:scale-95">− 減去</button>
+            </div>
+          </section>
+          <section class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white p-5 rounded-2xl shadow-lg text-center space-y-1">
+            <span class="text-xs text-purple-100 uppercase font-semibold tracking-wide">結果日期</span>
+            <div class="text-3xl font-black mt-1" id="tm-result-date">—</div>
+            <p class="text-xs text-purple-100" id="tm-result-week">—</p>
+          </section>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    let mode = 'date';
+
+    const setTab = (m) => {
+      mode = m;
+      document.querySelectorAll('.tm-tab').forEach(btn => {
+        const on = btn.dataset.tm === m;
+        btn.className = on
+          ? 'tm-tab flex-1 py-2.5 rounded-xl bg-purple-500 text-white shadow-sm'
+          : 'tm-tab flex-1 py-2.5 rounded-xl text-slate-400';
       });
-  } else {
-    $('offline-status').textContent = '此瀏覽器不支援離線功能';
+      $('tm-panel-date').classList.toggle('hidden', m !== 'date');
+      $('tm-panel-time').classList.toggle('hidden', m !== 'time');
+      $('tm-panel-add').classList.toggle('hidden', m !== 'add');
+      if (m === 'date') calcDate();
+      if (m === 'time') calcTime();
+      if (m === 'add') calcAdd(0);
+    };
+
+    document.querySelectorAll('.tm-tab').forEach(btn => {
+      btn.onclick = () => setTab(btn.dataset.tm);
+    });
+
+    // —— 日期相差 ——
+    function calcDate() {
+      const a = $('tm-d1').value;
+      const b = $('tm-d2').value;
+      if (!a || !b) return;
+      const d1 = new Date(a + 'T00:00:00');
+      const d2 = new Date(b + 'T00:00:00');
+      const ms = d2 - d1;
+      const days = Math.round(ms / 86400000);
+      const abs = Math.abs(days);
+      txt('tm-days', days);
+      txt('tm-weeks', (abs / 7).toFixed(1));
+      txt('tm-months', (abs / 30.437).toFixed(1));
+      txt('tm-years', (abs / 365.25).toFixed(2));
+      if (days === 0) txt('tm-date-hint', '同一天');
+      else if (days > 0) txt('tm-date-hint', `結束日期在開始日期之後 ${abs} 天`);
+      else txt('tm-date-hint', `結束日期在開始日期之前 ${abs} 天`);
+    }
+    $('tm-d1').oninput = calcDate;
+    $('tm-d2').oninput = calcDate;
+    $('tm-d-swap').onclick = () => {
+      const t = $('tm-d1').value;
+      $('tm-d1').value = $('tm-d2').value;
+      $('tm-d2').value = t;
+      calcDate();
+    };
+    $('tm-d-today').onclick = () => {
+      $('tm-d2').value = toDateStr(new Date());
+      calcDate();
+    };
+
+    // —— 時間相差 ——
+    function calcTime() {
+      const t1 = $('tm-t1').value;
+      const t2 = $('tm-t2').value;
+      if (!t1 || !t2) return;
+      const [h1, m1] = t1.split(':').map(Number);
+      const [h2, m2] = t2.split(':').map(Number);
+      let sec1 = h1 * 3600 + m1 * 60;
+      let sec2 = h2 * 3600 + m2 * 60;
+      if ($('tm-cross-day').checked && sec2 <= sec1) sec2 += 86400;
+      let diff = sec2 - sec1;
+      const neg = diff < 0;
+      diff = Math.abs(diff);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      txt('tm-hms', `${neg ? '−' : ''}${h} 時 ${m} 分${s ? ' ' + s + ' 秒' : ''}`);
+      txt('tm-total-h', (diff / 3600).toFixed(2));
+      txt('tm-total-m', Math.floor(diff / 60));
+      txt('tm-total-s', diff);
+    }
+    $('tm-t1').oninput = calcTime;
+    $('tm-t2').oninput = calcTime;
+    $('tm-cross-day').onchange = calcTime;
+
+    // —— 日期加減 ——
+    const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+    function calcAdd(sign) {
+      // sign: 1 add, -1 sub, 0 just refresh with last sign stored
+      if (sign !== 0) calcAdd._last = sign;
+      const s = calcAdd._last || 1;
+      const base = $('tm-base').value;
+      const amt = parseInt($('tm-amt').value, 10) || 0;
+      const unit = $('tm-unit').value;
+      if (!base) return;
+      const d = new Date(base + 'T12:00:00');
+      const n = s * amt;
+      if (unit === 'day') d.setDate(d.getDate() + n);
+      else if (unit === 'week') d.setDate(d.getDate() + n * 7);
+      else if (unit === 'month') d.setMonth(d.getMonth() + n);
+      else if (unit === 'year') d.setFullYear(d.getFullYear() + n);
+      const str = toDateStr(d);
+      txt('tm-result-date', str);
+      txt('tm-result-week', `星期${weekNames[d.getDay()]} · ${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`);
+    }
+    calcAdd._last = 1;
+    $('tm-add').onclick = () => calcAdd(1);
+    $('tm-sub').onclick = () => calcAdd(-1);
+    ['tm-base', 'tm-amt', 'tm-unit'].forEach(id => {
+      $(id).oninput = () => calcAdd(0);
+      $(id).onchange = () => calcAdd(0);
+    });
+
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id !== 'time') return;
+      const now = new Date();
+      $('tm-d1').value = toDateStr(now);
+      $('tm-d2').value = toDateStr(now);
+      $('tm-t1').value = toTimeStr(now);
+      $('tm-t2').value = toTimeStr(new Date(now.getTime() + 90 * 60000));
+      $('tm-cross-day').checked = false;
+      $('tm-base').value = toDateStr(now);
+      $('tm-amt').value = 7;
+      $('tm-unit').value = 'week';
+      setTab('date');
+      calcDate();
+      calcTime();
+      calcAdd(1);
+    });
+
+    calcDate();
+    calcTime();
+    calcAdd(1);
+  }
+
+  // ========== 7. 單位轉換 ==========
+  function initUnit() {
+    const el = $('content-unit');
+    if (!el) return;
+
+    // 基準單位換算表（全部轉成基準再轉出）
+    const UNITS = {
+      length: {
+        label: '長度',
+        base: 'm',
+        list: [
+          { id: 'mm', name: '毫米 (mm)', toBase: 0.001 },
+          { id: 'cm', name: '厘米 (cm)', toBase: 0.01 },
+          { id: 'm', name: '米 (m)', toBase: 1 },
+          { id: 'km', name: '公里 (km)', toBase: 1000 },
+          { id: 'in', name: '吋 (in)', toBase: 0.0254 },
+          { id: 'ft', name: '呎 (ft)', toBase: 0.3048 },
+          { id: 'yd', name: '碼 (yd)', toBase: 0.9144 },
+          { id: 'mi', name: '英里 (mi)', toBase: 1609.344 },
+        ],
+      },
+      area: {
+        label: '面積',
+        base: 'm2',
+        list: [
+          { id: 'm2', name: '平方米 (m²)', toBase: 1 },
+          { id: 'cm2', name: '平方厘米 (cm²)', toBase: 0.0001 },
+          { id: 'km2', name: '平方公里 (km²)', toBase: 1e6 },
+          { id: 'ft2', name: '平方呎 (ft²)', toBase: 0.09290304 },
+          { id: 'in2', name: '平方吋 (in²)', toBase: 0.00064516 },
+          { id: 'yd2', name: '平方碼 (yd²)', toBase: 0.83612736 },
+          { id: 'acre', name: '英畝 (acre)', toBase: 4046.8564224 },
+          { id: 'ha', name: '公頃 (ha)', toBase: 10000 },
+        ],
+      },
+      weight: {
+        label: '重量',
+        base: 'g',
+        list: [
+          { id: 'mg', name: '毫克 (mg)', toBase: 0.001 },
+          { id: 'g', name: '克 (g)', toBase: 1 },
+          { id: 'kg', name: '公斤 (kg)', toBase: 1000 },
+          { id: 'oz', name: '安士 (oz)', toBase: 28.349523125 },
+          { id: 'lb', name: '磅 (lb)', toBase: 453.59237 },
+          { id: 'jin', name: '斤 (市斤)', toBase: 500 },
+          { id: 'tael', name: '両 (兩)', toBase: 37.5 },
+        ],
+      },
+      volume: {
+        label: '體積／烹飪',
+        base: 'ml',
+        list: [
+          { id: 'ml', name: '毫升 (ml)', toBase: 1 },
+          { id: 'l', name: '公升 (L)', toBase: 1000 },
+          { id: 'tsp', name: '茶匙 (tsp)', toBase: 5 },
+          { id: 'tbsp', name: '湯匙 (tbsp)', toBase: 15 },
+          { id: 'cup', name: '杯 (cup, 美制)', toBase: 240 },
+          { id: 'cup_metric', name: '杯 (metric 250ml)', toBase: 250 },
+          { id: 'floz', name: '液安士 (fl oz, 美)', toBase: 29.5735295625 },
+          { id: 'pt', name: '品脫 (pint, 美)', toBase: 473.176473 },
+          { id: 'gal', name: '加侖 (gal, 美)', toBase: 3785.411784 },
+        ],
+      },
+    };
+
+    // 鞋碼：歐碼 EU 為基準的近似對照（成人）
+    const SHOE_EU = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+    const shoeRow = (eu) => {
+      // 近似公式
+      const ukM = eu - 33; // rough men
+      const ukW = eu - 32.5;
+      const usM = eu - 33 + 1; // US men ≈ UK + 1
+      const usW = eu - 31; // US women roughly
+      const cm = (eu * 2 / 3) + 1.5; // mondopoint-ish
+      return {
+        eu,
+        ukM: (Math.round(ukM * 2) / 2).toFixed(1).replace(/\.0$/, ''),
+        usM: (Math.round(usM * 2) / 2).toFixed(1).replace(/\.0$/, ''),
+        ukW: (Math.round(ukW * 2) / 2).toFixed(1).replace(/\.0$/, ''),
+        usW: (Math.round(usW * 2) / 2).toFixed(1).replace(/\.0$/, ''),
+        cm: cm.toFixed(1),
+      };
+    };
+    const SHOE_TABLE = SHOE_EU.map(shoeRow);
+
+    // 衣碼：通用對照（上衣／胸圍為主，近似）
+    const CLOTHES = [
+      { label: 'XS', hk: 'XS', eu: '32-34', us: '0-2', uk: '4-6', chest: '76-81' },
+      { label: 'S', hk: 'S', eu: '36-38', us: '4-6', uk: '8-10', chest: '81-86' },
+      { label: 'M', hk: 'M', eu: '40-42', us: '8-10', uk: '12-14', chest: '86-91' },
+      { label: 'L', hk: 'L', eu: '44-46', us: '12-14', uk: '16-18', chest: '91-96' },
+      { label: 'XL', hk: 'XL', eu: '48-50', us: '16-18', uk: '20-22', chest: '96-101' },
+      { label: 'XXL', hk: 'XXL', eu: '52-54', us: '20-22', uk: '24-26', chest: '101-106' },
+    ];
+
+    el.innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-white p-1 rounded-2xl flex text-[11px] font-bold border border-slate-100 shadow-sm overflow-x-auto">
+          <button type="button" data-uc="length" class="uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl bg-teal-500 text-white shadow-sm whitespace-nowrap">長度</button>
+          <button type="button" data-uc="area" class="uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl text-slate-400 whitespace-nowrap">面積</button>
+          <button type="button" data-uc="weight" class="uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl text-slate-400 whitespace-nowrap">重量</button>
+          <button type="button" data-uc="volume" class="uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl text-slate-400 whitespace-nowrap">烹飪</button>
+          <button type="button" data-uc="size" class="uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl text-slate-400 whitespace-nowrap">尺碼</button>
+        </div>
+
+        <!-- 通用轉換面板 -->
+        <div id="uc-convert" class="space-y-4">
+          <section class="card p-4 space-y-3">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="arrow-left-right" class="w-4 h-4 text-teal-600"></i>
+              <span id="uc-title">長度轉換</span>
+            </h2>
+            <div>
+              <label class="block text-slate-500 mb-1 text-xs font-medium">數值</label>
+              <input type="number" id="uc-val" value="1" step="any" inputmode="decimal"
+                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 text-lg">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">由</label>
+                <select id="uc-from" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none text-sm"></select>
+              </div>
+              <div>
+                <label class="block text-slate-500 mb-1 text-xs font-medium">至</label>
+                <select id="uc-to" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none text-sm"></select>
+              </div>
+            </div>
+            <button type="button" id="uc-swap" class="w-full py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center gap-1 active:scale-95">
+              <i data-lucide="repeat" class="w-3.5 h-3.5"></i> 對調單位
+            </button>
+          </section>
+
+          <section class="bg-gradient-to-br from-teal-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg text-center space-y-1">
+            <span class="text-xs text-teal-100 uppercase font-semibold tracking-wide">結果</span>
+            <div class="text-3xl font-black mt-1 break-all" id="uc-result">—</div>
+            <p class="text-xs text-teal-100" id="uc-result-unit">—</p>
+          </section>
+
+          <section class="card overflow-hidden">
+            <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">全部單位對照</div>
+            <ul id="uc-all" class="divide-y divide-slate-50 max-h-64 overflow-y-auto text-sm"></ul>
+          </section>
+
+          <p class="text-[11px] text-slate-400 leading-relaxed px-1" id="uc-note">
+            ※ 烹飪單位採用常見美制／公制近似值；實際廚具容量可能略有差異。
+          </p>
+        </div>
+
+        <!-- 尺碼面板 -->
+        <div id="uc-size" class="hidden space-y-4">
+          <div class="bg-white p-1 rounded-2xl flex text-xs font-bold border border-slate-100 shadow-sm">
+            <button type="button" data-sz="shoe" class="sz-tab flex-1 py-2.5 rounded-xl bg-teal-500 text-white shadow-sm">鞋碼</button>
+            <button type="button" data-sz="cloth" class="sz-tab flex-1 py-2.5 rounded-xl text-slate-400">衣碼（上衣）</button>
+          </div>
+
+          <div id="uc-shoe" class="space-y-3">
+            <section class="card p-4 space-y-3">
+              <h2 class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <i data-lucide="footprints" class="w-4 h-4 text-teal-600"></i>輸入任一尺碼查對照
+              </h2>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-slate-500 mb-1 text-xs font-medium">系統</label>
+                  <select id="uc-shoe-sys" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none text-sm">
+                    <option value="eu">歐碼 (EU)</option>
+                    <option value="ukM">英碼男 (UK)</option>
+                    <option value="usM">美碼男 (US)</option>
+                    <option value="ukW">英碼女 (UK)</option>
+                    <option value="usW">美碼女 (US)</option>
+                    <option value="cm">腳長 (cm)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-500 mb-1 text-xs font-medium">數值</label>
+                  <input type="number" id="uc-shoe-val" value="42" step="0.5" inputmode="decimal"
+                    class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+              </div>
+            </section>
+            <section class="bg-gradient-to-br from-teal-500 to-emerald-600 text-white p-4 rounded-2xl shadow-lg">
+              <div class="grid grid-cols-2 gap-2 text-center text-xs" id="uc-shoe-out">
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">EU</span><span class="font-black text-lg" id="sh-eu">—</span></div>
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">腳長 cm</span><span class="font-black text-lg" id="sh-cm">—</span></div>
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">UK 男</span><span class="font-black text-lg" id="sh-ukm">—</span></div>
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">US 男</span><span class="font-black text-lg" id="sh-usm">—</span></div>
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">UK 女</span><span class="font-black text-lg" id="sh-ukw">—</span></div>
+                <div class="bg-white/15 rounded-xl p-2.5"><span class="text-teal-100 block">US 女</span><span class="font-black text-lg" id="sh-usw">—</span></div>
+              </div>
+            </section>
+            <section class="card overflow-hidden">
+              <div class="bg-slate-50 px-3 py-2 border-b border-slate-100 text-xs font-bold text-slate-500">完整對照表（近似）</div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] text-center">
+                  <thead class="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th class="py-2 px-1">EU</th><th class="py-2 px-1">UK男</th><th class="py-2 px-1">US男</th>
+                      <th class="py-2 px-1">UK女</th><th class="py-2 px-1">US女</th><th class="py-2 px-1">cm</th>
+                    </tr>
+                  </thead>
+                  <tbody id="uc-shoe-table" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+            </section>
+            <p class="text-[11px] text-slate-400 px-1">※ 鞋碼因品牌而異，此表僅供參考，試穿最準。</p>
+          </div>
+
+          <div id="uc-cloth" class="hidden space-y-3">
+            <section class="card overflow-hidden">
+              <div class="bg-slate-50 px-3 py-2 border-b border-slate-100 text-xs font-bold text-slate-500">上衣／通用尺碼對照</div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] text-center">
+                  <thead class="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th class="py-2 px-1.5">國際</th><th class="py-2 px-1.5">HK</th><th class="py-2 px-1.5">EU</th>
+                      <th class="py-2 px-1.5">US</th><th class="py-2 px-1.5">UK</th><th class="py-2 px-1.5">胸圍cm</th>
+                    </tr>
+                  </thead>
+                  <tbody id="uc-cloth-table" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+            </section>
+            <p class="text-[11px] text-slate-400 px-1 leading-relaxed">※ 服飾尺碼因品牌、剪裁差異很大，建議以胸圍／尺碼表為準，此為常見近似對照。</p>
+          </div>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    let cat = 'length';
+    let sizeMode = 'shoe';
+
+    function fillSelects() {
+      const list = UNITS[cat].list;
+      const from = $('uc-from'), to = $('uc-to');
+      const prevFrom = from.value, prevTo = to.value;
+      from.innerHTML = list.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      to.innerHTML = list.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      // 預設合理配對
+      const defaults = {
+        length: ['m', 'ft'],
+        area: ['ft2', 'm2'],
+        weight: ['g', 'oz'],
+        volume: ['ml', 'cup'],
+      };
+      const [df, dt] = defaults[cat] || [list[0].id, list[1]?.id || list[0].id];
+      from.value = list.some(u => u.id === prevFrom) ? prevFrom : df;
+      to.value = list.some(u => u.id === prevTo) ? prevTo : dt;
+      if (from.value === to.value && list[1]) to.value = list[1].id;
+    }
+
+    function fmt(n) {
+      if (!isFinite(n)) return '—';
+      const a = Math.abs(n);
+      if (a === 0) return '0';
+      if (a >= 1e6 || (a < 1e-4 && a > 0)) return n.toExponential(4);
+      if (a >= 100) return (Math.round(n * 100) / 100).toString();
+      if (a >= 1) return (Math.round(n * 10000) / 10000).toString();
+      return (Math.round(n * 1e6) / 1e6).toString();
+    }
+
+    function convert() {
+      if (cat === 'size') return;
+      const list = UNITS[cat].list;
+      const fromU = list.find(u => u.id === $('uc-from').value);
+      const toU = list.find(u => u.id === $('uc-to').value);
+      const val = parseFloat($('uc-val').value);
+      if (!fromU || !toU || isNaN(val)) {
+        txt('uc-result', '—');
+        txt('uc-result-unit', '');
+        return;
+      }
+      const base = val * fromU.toBase;
+      const out = base / toU.toBase;
+      txt('uc-result', fmt(out));
+      txt('uc-result-unit', toU.name);
+
+      const all = $('uc-all');
+      all.innerHTML = list.map(u => {
+        const v = base / u.toBase;
+        const hl = u.id === toU.id ? 'bg-teal-50 font-bold text-teal-600' : 'text-slate-700';
+        return `<li class="px-4 py-2.5 flex justify-between items-center ${hl}">
+          <span class="text-slate-500 text-xs">${u.name}</span>
+          <span class="font-semibold">${fmt(v)}</span>
+        </li>`;
+      }).join('');
+    }
+
+    function setCat(c) {
+      cat = c;
+      document.querySelectorAll('.uc-tab').forEach(btn => {
+        const on = btn.dataset.uc === c;
+        btn.className = on
+          ? 'uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl bg-teal-500 text-white shadow-sm whitespace-nowrap'
+          : 'uc-tab flex-1 min-w-[3.5rem] py-2.5 rounded-xl text-slate-400 whitespace-nowrap';
+      });
+      const isSize = c === 'size';
+      $('uc-convert').classList.toggle('hidden', isSize);
+      $('uc-size').classList.toggle('hidden', !isSize);
+      if (!isSize) {
+        $('uc-title').textContent = UNITS[c].label + '轉換';
+        $('uc-note').textContent = c === 'volume'
+          ? '※ 烹飪：1 茶匙≈5ml、1 湯匙≈15ml、1 美制杯≈240ml、1 metric 杯≈250ml。實際廚具可能有差異。'
+          : '※ 換算採用國際標準係數，結果已四捨五入顯示。';
+        fillSelects();
+        convert();
+      }
+    }
+
+    function setSizeMode(m) {
+      sizeMode = m;
+      document.querySelectorAll('.sz-tab').forEach(btn => {
+        const on = btn.dataset.sz === m;
+        btn.className = on
+          ? 'sz-tab flex-1 py-2.5 rounded-xl bg-teal-500 text-white shadow-sm'
+          : 'sz-tab flex-1 py-2.5 rounded-xl text-slate-400';
+      });
+      $('uc-shoe').classList.toggle('hidden', m !== 'shoe');
+      $('uc-cloth').classList.toggle('hidden', m !== 'cloth');
+    }
+
+    // 鞋碼查詢：由輸入反推最接近的 EU 再輸出整列
+    function lookupShoe() {
+      const sys = $('uc-shoe-sys').value;
+      const val = parseFloat($('uc-shoe-val').value);
+      if (isNaN(val)) return;
+      let best = SHOE_TABLE[0], bestDiff = Infinity;
+      SHOE_TABLE.forEach(row => {
+        let v;
+        if (sys === 'eu') v = row.eu;
+        else if (sys === 'cm') v = parseFloat(row.cm);
+        else if (sys === 'ukM') v = parseFloat(row.ukM);
+        else if (sys === 'usM') v = parseFloat(row.usM);
+        else if (sys === 'ukW') v = parseFloat(row.ukW);
+        else if (sys === 'usW') v = parseFloat(row.usW);
+        const d = Math.abs(v - val);
+        if (d < bestDiff) { bestDiff = d; best = row; }
+      });
+      txt('sh-eu', best.eu);
+      txt('sh-cm', best.cm);
+      txt('sh-ukm', best.ukM);
+      txt('sh-usm', best.usM);
+      txt('sh-ukw', best.ukW);
+      txt('sh-usw', best.usW);
+      // highlight table row
+      document.querySelectorAll('#uc-shoe-table tr').forEach(tr => {
+        tr.classList.toggle('bg-teal-50', +tr.dataset.eu === best.eu);
+      });
+    }
+
+    function renderShoeTable() {
+      $('uc-shoe-table').innerHTML = SHOE_TABLE.map(r => `
+        <tr data-eu="${r.eu}" class="text-slate-700">
+          <td class="py-1.5 px-1 font-semibold">${r.eu}</td>
+          <td class="py-1.5 px-1">${r.ukM}</td>
+          <td class="py-1.5 px-1">${r.usM}</td>
+          <td class="py-1.5 px-1">${r.ukW}</td>
+          <td class="py-1.5 px-1">${r.usW}</td>
+          <td class="py-1.5 px-1">${r.cm}</td>
+        </tr>`).join('');
+    }
+
+    function renderClothTable() {
+      $('uc-cloth-table').innerHTML = CLOTHES.map(r => `
+        <tr class="text-slate-700">
+          <td class="py-2 px-1.5 font-bold">${r.label}</td>
+          <td class="py-2 px-1.5">${r.hk}</td>
+          <td class="py-2 px-1.5">${r.eu}</td>
+          <td class="py-2 px-1.5">${r.us}</td>
+          <td class="py-2 px-1.5">${r.uk}</td>
+          <td class="py-2 px-1.5">${r.chest}</td>
+        </tr>`).join('');
+    }
+
+    document.querySelectorAll('.uc-tab').forEach(btn => {
+      btn.onclick = () => setCat(btn.dataset.uc);
+    });
+    document.querySelectorAll('.sz-tab').forEach(btn => {
+      btn.onclick = () => setSizeMode(btn.dataset.sz);
+    });
+    $('uc-val').oninput = convert;
+    $('uc-from').onchange = convert;
+    $('uc-to').onchange = convert;
+    $('uc-swap').onclick = () => {
+      const a = $('uc-from').value;
+      $('uc-from').value = $('uc-to').value;
+      $('uc-to').value = a;
+      convert();
+    };
+    $('uc-shoe-sys').onchange = lookupShoe;
+    $('uc-shoe-val').oninput = lookupShoe;
+
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id !== 'unit') return;
+      $('uc-val').value = 1;
+      setCat('length');
+      setSizeMode('shoe');
+      $('uc-shoe-sys').value = 'eu';
+      $('uc-shoe-val').value = 42;
+      lookupShoe();
+    });
+
+    renderShoeTable();
+    renderClothTable();
+    setCat('length');
+    lookupShoe();
+  }
+
+  // ========== 8. 支票本本 ==========
+  function initCheque() {
+    const el = $('content-cheque');
+    if (!el) return;
+
+    const todayStr = () => new Date().toISOString().slice(0, 10);
+
+    // —— 中文大寫 ——
+    function numToZhCap(n, useZheng = true) {
+      const num = Math.round(parseFloat(n) * 100) / 100;
+      if (!isFinite(num) || num < 0) return '';
+      const endChar = useZheng ? '正' : '整';
+      if (num === 0) return '港幣零元' + endChar;
+      const digits = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
+      const units = ['', '拾', '佰', '仟'];
+      const bigUnits = ['', '萬', '億', '兆'];
+      let [intStr, decStr] = num.toFixed(2).split('.');
+      const intNum = parseInt(intStr, 10);
+      let result = '';
+      if (intNum > 0) {
+        const groups = [];
+        let s = intStr;
+        while (s.length > 0) { groups.unshift(s.slice(-4)); s = s.slice(0, -4); }
+        const groupCount = groups.length;
+        groups.forEach((g, idx) => {
+          const bigIdx = groupCount - 1 - idx;
+          const gNum = parseInt(g, 10);
+          if (gNum === 0) {
+            const hasLater = groups.slice(idx + 1).some(x => parseInt(x, 10) !== 0);
+            if (hasLater && result && !result.endsWith('零')) result += '零';
+            return;
+          }
+          if (result && g.length === 4 && g[0] === '0' && !result.endsWith('零')) result += '零';
+          let gStr = '', zeroFlag = false;
+          for (let j = 0; j < g.length; j++) {
+            const d = parseInt(g[j], 10);
+            const u = g.length - 1 - j;
+            if (d === 0) zeroFlag = true;
+            else {
+              if (zeroFlag && gStr) gStr += '零';
+              zeroFlag = false;
+              gStr += digits[d] + units[u];
+            }
+          }
+          result += gStr + bigUnits[bigIdx];
+        });
+      }
+      result = (intNum > 0 ? result : '零') + '元';
+      const jiao = parseInt(decStr[0], 10);
+      const fen = parseInt(decStr[1], 10);
+      if (jiao === 0 && fen === 0) result += endChar;
+      else {
+        if (jiao > 0) result += digits[jiao] + '角';
+        else if (fen > 0) result += '零';
+        if (fen > 0) result += digits[fen] + '分';
+      }
+      return '港幣' + result;
+    }
+
+    const th = ['', 'thousand', 'million', 'billion'];
+    const dg = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const tn = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    const tw = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+    function toWords(s) {
+      s = String(s).replace(/[\, ]/g, '');
+      if (s != parseFloat(s)) return '';
+      let x = s.indexOf('.');
+      if (x === -1) x = s.length;
+      if (x > 15) return 'too big';
+      const n = s.split('');
+      let str = '', sk = 0;
+      for (let i = 0; i < x; i++) {
+        if ((x - i) % 3 === 2) {
+          if (n[i] === '1') { str += tn[Number(n[i + 1])] + ' '; i++; sk = 1; }
+          else if (n[i] != 0) { str += tw[n[i] - 2] + ' '; sk = 1; }
+        } else if (n[i] != 0) {
+          str += dg[n[i]] + ' ';
+          if ((x - i) % 3 === 0) str += 'hundred ';
+          sk = 1;
+        }
+        if ((x - i) % 3 === 1) {
+          if (sk) str += th[(x - i - 1) / 3] + ' ';
+          sk = 0;
+        }
+      }
+      return str.trim();
+    }
+    function numToUkEn(n) {
+      const [intPart, decPart] = parseFloat(n).toFixed(2).split('.');
+      let res = (toWords(intPart) || 'Zero') + ' Dollars';
+      const cents = parseInt(decPart, 10);
+      if (cents > 0) res += ' and ' + toWords(cents) + ' Cents';
+      return (res + ' Only').toUpperCase();
+    }
+    function numToUsEn(n) {
+      const [intPart, decPart] = parseFloat(n).toFixed(2).split('.');
+      const dollars = toWords(intPart);
+      return dollars.charAt(0).toUpperCase() + dollars.slice(1) + ' and ' + decPart.padStart(2, '0') + '/100 Dollars Only';
+    }
+
+    function checkDateValid(dateVal) {
+      if (!dateVal) return null;
+      const d = new Date(dateVal); d.setHours(0, 0, 0, 0);
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      const sixAgo = new Date(now); sixAgo.setMonth(sixAgo.getMonth() - 6);
+      if (d > now) return { type: 'warn', msg: '遠期支票：收款人需待此日期當日或之後才可兌現。' };
+      if (d < sixAgo) return { type: 'error', msg: '已超過 6 個月，屬過期支票 (Stale)，銀行會拒收！' };
+      return null;
+    }
+
+    el.innerHTML = `
+      <div class="space-y-4">
+        <section class="card p-4 space-y-3">
+          <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="pen-line" class="w-4 h-4 text-slate-600"></i>輸入支票資料
+          </h2>
+          <div>
+            <label class="block text-slate-500 mb-1 text-xs font-medium">收款人 (Payee)</label>
+            <input type="text" id="cq-payee" value="陳大文" placeholder="姓名或公司名稱"
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400 text-sm">
+          </div>
+          <div>
+            <label class="block text-slate-500 mb-1 text-xs font-medium">金額 (HKD)</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-slate-400 text-sm font-bold">$</span>
+              <input type="number" id="cq-amt" value="12345.50" step="0.01" min="0" inputmode="decimal"
+                class="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+          </div>
+          <div>
+            <label class="block text-slate-500 mb-1 text-xs font-medium">簽發日期</label>
+            <input type="date" id="cq-date" value="${todayStr()}"
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400">
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2.5">
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>劃線 A/C Payee Only</span>
+              <input type="checkbox" id="cq-cross" checked class="w-4 h-4 accent-indigo-500 rounded">
+            </label>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5"><i data-lucide="user-x" class="w-3.5 h-3.5 text-slate-400"></i>劃掉「或持票人」</span>
+              <input type="checkbox" id="cq-bearer" checked class="w-4 h-4 accent-indigo-500 rounded">
+            </label>
+            <label class="flex items-center justify-between cursor-pointer pt-1 border-t border-slate-200">
+              <span class="text-xs font-semibold text-slate-600">結尾用「正」代替「整」</span>
+              <input type="checkbox" id="cq-zheng" checked class="w-4 h-4 accent-indigo-500 rounded">
+            </label>
+          </div>
+          <div id="cq-notice" class="hidden text-xs font-medium px-3 py-2 rounded-xl border"></div>
+        </section>
+
+        <!-- 預覽 -->
+        <section class="card p-3 space-y-2">
+          <div class="flex justify-between items-center text-xs text-slate-500 px-1">
+            <span class="font-bold flex items-center gap-1"><i data-lucide="eye" class="w-3.5 h-3.5"></i>支票預覽</span>
+            <span class="text-[10px]">對照抄寫</span>
+          </div>
+          <div id="cq-graphic" class="cheque-preview border border-slate-300 rounded-xl p-3.5 relative overflow-hidden text-slate-800 space-y-3 text-xs">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="text-sm font-bold text-slate-700">香港銀行</div>
+                <div class="text-[9px] text-slate-400 uppercase tracking-wider">HONG KONG BANK</div>
+              </div>
+              <div class="text-right">
+                <div class="text-[9px] text-slate-400">日期 Date</div>
+                <div id="cq-p-date" class="font-mono text-sm font-bold border-b border-slate-400 min-w-[100px] text-center px-1">-- / -- / ----</div>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">祈付</span>
+              <div class="flex-1 border-b border-dashed border-slate-400 px-1.5 min-h-[24px] flex justify-between items-center">
+                <span id="cq-p-payee" class="font-bold text-sm text-slate-800">--</span>
+                <span id="cq-p-bearer" class="text-[9px] text-slate-400 line-through">OR BEARER</span>
+              </div>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">港幣</span>
+              <div id="cq-p-words" class="flex-1 border-b border-dashed border-slate-400 px-1.5 min-h-[24px] font-bold text-[11px] leading-snug flex items-center">--</div>
+            </div>
+            <div class="flex justify-between items-end pt-1">
+              <div class="border-2 border-slate-400 bg-white/90 px-2.5 py-1 font-mono font-bold text-sm">
+                HK$ <span id="cq-p-num">0.00</span>
+              </div>
+              <div class="text-right">
+                <div class="w-28 border-b border-slate-400 h-8"></div>
+                <div class="text-[9px] text-slate-400 mt-0.5">Authorized Signature</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 大寫對照 -->
+        <section class="card p-4 space-y-3">
+          <h2 class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-4 h-4 text-slate-600"></i>大寫對照（點擊複製）
+          </h2>
+          <button type="button" id="cq-copy-zh" class="w-full text-left p-3 bg-slate-50 rounded-xl border border-slate-100 active:scale-[0.99] transition">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[10px] font-bold text-indigo-600">繁體中文大寫</span>
+              <span class="text-[10px] text-slate-400">複製</span>
+            </div>
+            <div id="cq-zh" class="font-bold text-slate-800 text-sm leading-snug">--</div>
+          </button>
+          <button type="button" id="cq-copy-uk" class="w-full text-left p-3 bg-slate-50 rounded-xl border border-slate-100 active:scale-[0.99] transition">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[10px] font-bold text-indigo-600">英式 / 香港英文</span>
+              <span class="text-[10px] text-slate-400">複製</span>
+            </div>
+            <div id="cq-uk" class="font-mono font-semibold text-slate-700 text-xs uppercase leading-snug">--</div>
+          </button>
+          <button type="button" id="cq-copy-us" class="w-full text-left p-3 bg-slate-50 rounded-xl border border-slate-100 active:scale-[0.99] transition">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[10px] font-bold text-indigo-600">美式寫法</span>
+              <span class="text-[10px] text-slate-400">複製</span>
+            </div>
+            <div id="cq-us" class="font-mono font-semibold text-slate-700 text-xs leading-snug">--</div>
+          </button>
+        </section>
+
+        <!-- 儲存 + 歷史 -->
+        <div class="flex gap-2">
+          <button type="button" id="cq-save" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 active:scale-95">
+            <i data-lucide="save" class="w-4 h-4"></i> 存入紀錄
+          </button>
+        </div>
+
+        <section class="card overflow-hidden">
+          <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
+            <span class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <i data-lucide="history" class="w-3.5 h-3.5"></i>開票紀錄
+            </span>
+            <button type="button" id="cq-clear-hist" class="text-[10px] text-rose-500 font-semibold">清除全部</button>
+          </div>
+          <ul id="cq-hist" class="divide-y divide-slate-50 min-h-[40px] max-h-48 overflow-y-auto"></ul>
+        </section>
+
+        <section class="card p-3.5 space-y-2 text-[11px] text-slate-500 leading-relaxed">
+          <p class="font-bold text-slate-600 flex items-center gap-1"><i data-lucide="info" class="w-3.5 h-3.5 text-indigo-500"></i>小提示</p>
+          <p>· 劃線支票必須入戶口，不可提現，最安全。</p>
+          <p>· 金額後面寫「正／整」並劃線至尾，防被加字。</p>
+          <p>· 支票有效期一般為簽發日起 6 個月。</p>
+        </section>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    function update() {
+      const payee = $('cq-payee').value.trim() || '---';
+      const amt = parseFloat($('cq-amt').value) || 0;
+      const dateVal = $('cq-date').value;
+      const crossed = $('cq-cross').checked;
+      const bearer = $('cq-bearer').checked;
+      const useZheng = $('cq-zheng').checked;
+
+      const notice = $('cq-notice');
+      const status = checkDateValid(dateVal);
+      if (status) {
+        notice.classList.remove('hidden');
+        if (status.type === 'warn') {
+          notice.className = 'text-xs font-medium px-3 py-2 rounded-xl border bg-amber-50 border-amber-100 text-amber-800';
+          notice.textContent = status.msg;
+        } else {
+          notice.className = 'text-xs font-medium px-3 py-2 rounded-xl border bg-red-50 border-rose-100 text-rose-700';
+          notice.textContent = status.msg;
+        }
+      } else notice.classList.add('hidden');
+
+      $('cq-p-payee').textContent = payee;
+      $('cq-p-num').textContent = amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (dateVal) {
+        const [y, m, d] = dateVal.split('-');
+        $('cq-p-date').textContent = `${d} / ${m} / ${y}`;
+      } else $('cq-p-date').textContent = '-- / -- / ----';
+
+      const g = $('cq-graphic');
+      if (crossed) g.classList.add('cheque-crossed');
+      else g.classList.remove('cheque-crossed');
+      const be = $('cq-p-bearer');
+      if (bearer) { be.classList.add('line-through', 'opacity-50'); }
+      else { be.classList.remove('line-through', 'opacity-50'); }
+
+      if (amt > 0) {
+        const zh = numToZhCap(amt, useZheng);
+        const uk = numToUkEn(amt);
+        const us = numToUsEn(amt);
+        $('cq-p-words').textContent = zh;
+        $('cq-zh').textContent = zh;
+        $('cq-uk').textContent = uk;
+        $('cq-us').textContent = us;
+      } else {
+        ['cq-p-words', 'cq-zh', 'cq-uk', 'cq-us'].forEach(id => txt(id, '--'));
+      }
+    }
+
+    function copyText(id) {
+      const t = $(id)?.textContent;
+      if (!t || t === '--') return;
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      // brief feedback
+      const btn = $(id === 'cq-zh' ? 'cq-copy-zh' : id === 'cq-uk' ? 'cq-copy-uk' : 'cq-copy-us');
+      if (btn) {
+        const old = btn.querySelector('.text-slate-400');
+        if (old) { old.textContent = '已複製'; setTimeout(() => { old.textContent = '複製'; }, 1200); }
+      }
+    }
+
+    function getHist() {
+      return JSON.parse(localStorage.getItem('cq_history') || '[]');
+    }
+    function renderHist() {
+      const list = $('cq-hist');
+      const hist = getHist();
+      if (!hist.length) {
+        list.innerHTML = '<li class="p-4 text-center text-slate-400 text-xs">暫無紀錄</li>';
+        return;
+      }
+      list.innerHTML = hist.map(item => `
+        <li class="px-4 py-2.5 flex justify-between items-center gap-2 text-xs">
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold text-slate-700 truncate">${item.payee}</p>
+            <p class="text-slate-400">${item.date} · ${item.type}</p>
+          </div>
+          <span class="font-bold text-slate-800 shrink-0">$${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          <button type="button" class="cq-reuse text-indigo-500 font-semibold shrink-0" data-id="${item.id}">重用</button>
+          <button type="button" class="cq-del text-slate-300 hover:text-red-500 shrink-0" data-id="${item.id}" aria-label="刪除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        </li>`).join('');
+      if (window.lucide) lucide.createIcons();
+      list.querySelectorAll('.cq-reuse').forEach(b => {
+        b.onclick = () => {
+          const item = getHist().find(x => x.id === +b.dataset.id);
+          if (!item) return;
+          $('cq-payee').value = item.payee;
+          $('cq-amt').value = item.amount;
+          $('cq-date').value = todayStr();
+          $('cq-cross').checked = item.type.includes('劃線');
+          update();
+        };
+      });
+      list.querySelectorAll('.cq-del').forEach(b => {
+        b.onclick = () => {
+          const hist2 = getHist().filter(x => x.id !== +b.dataset.id);
+          localStorage.setItem('cq_history', JSON.stringify(hist2));
+          renderHist();
+        };
+      });
+    }
+
+    ['cq-payee', 'cq-amt', 'cq-date', 'cq-cross', 'cq-bearer', 'cq-zheng'].forEach(id => {
+      $(id)?.addEventListener('input', update);
+      $(id)?.addEventListener('change', update);
+    });
+    $('cq-copy-zh').onclick = () => copyText('cq-zh');
+    $('cq-copy-uk').onclick = () => copyText('cq-uk');
+    $('cq-copy-us').onclick = () => copyText('cq-us');
+    $('cq-save').onclick = () => {
+      const payee = $('cq-payee').value.trim();
+      const amount = parseFloat($('cq-amt').value);
+      const date = $('cq-date').value;
+      if (!payee || !amount || !date) return;
+      const hist = getHist();
+      hist.unshift({
+        id: Date.now(),
+        payee,
+        amount,
+        date,
+        type: $('cq-cross').checked ? '劃線' : '不劃線',
+      });
+      localStorage.setItem('cq_history', JSON.stringify(hist.slice(0, 50)));
+      renderHist();
+    };
+    $('cq-clear-hist').onclick = () => {
+      if (confirm('確定清除所有開票紀錄？')) {
+        localStorage.removeItem('cq_history');
+        renderHist();
+      }
+    };
+
+    window.addEventListener('reset-calc', e => {
+      if (e.detail.id !== 'cheque') return;
+      $('cq-payee').value = '陳大文';
+      $('cq-amt').value = '12345.50';
+      $('cq-date').value = todayStr();
+      $('cq-cross').checked = true;
+      $('cq-bearer').checked = true;
+      $('cq-zheng').checked = true;
+      update();
+    });
+
+    update();
+    renderHist();
   }
 
   // ========== Boot ==========
@@ -1219,7 +2516,18 @@
   initParty();
   initSupermarket();
   initSushiro();
-  goTo(0, false);
+  initTime();
+  initUnit();
+  initCheque();
+  goHome(false); // 預設顯示首頁
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('SW registered', reg.scope))
+        .catch(err => console.warn('SW registration failed', err));
+    });
+  }
 })();
 </script>
 </body>
